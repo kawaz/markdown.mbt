@@ -18,6 +18,29 @@ fn contains_link(inlines : Array[Inline]) -> Bool {
   false
 }
 
+///| Trim trailing spaces from the last Text element in inlines array
+///| Optimized to avoid allocation when no trimming is needed
+fn trim_trailing_space_from_last_text(inlines : Array[Inline]) -> Unit {
+  guard inlines.length() > 0 else { return }
+  guard inlines[inlines.length() - 1] is Inline::Text(content~, span~) else {
+    return
+  }
+  let len = content.length()
+  guard len > 0 else { return }
+  // Quick check: does it end with space?
+  guard content[len - 1] == ' ' else { return }
+  // Find last non-space character
+  let mut end = len - 1
+  while end > 0 && content[end - 1] == ' ' {
+    end = end - 1
+  }
+  // Now trim
+  let _ = inlines.pop()
+  if end > 0 {
+    inlines.push(Inline::Text(content=content.substring(end=end), span~))
+  }
+}
+
 ///| Parse inline content from text
 pub fn parse_inlines(text : String) -> Array[Inline] {
   let scanner = Scanner::new(text)
@@ -43,20 +66,8 @@ fn InlineParser::parse(self : InlineParser) -> Array[Inline] {
       Some(inline) => {
         // For soft/hard breaks, trim trailing whitespace from previous text
         match inline {
-          Inline::SoftBreak(..) | Inline::HardBreak(..) => {
-            match inlines.last() {
-              Some(Inline::Text(content~, span~)) => {
-                let trimmed = content.trim_end(chars=" ").to_string()
-                if trimmed != content {
-                  let _ = inlines.pop()
-                  if not(trimmed.is_empty()) {
-                    inlines.push(Inline::Text(content=trimmed, span~))
-                  }
-                }
-              }
-              _ => ()
-            }
-          }
+          Inline::SoftBreak(..) | Inline::HardBreak(..) =>
+            trim_trailing_space_from_last_text(inlines)
           _ => ()
         }
         inlines.push(inline)
