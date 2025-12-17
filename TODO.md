@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- **Main tests**: 108/108 passing (100%)
+- **Main tests**: 125/125 passing (100%)
 - **CommonMark tests (strict=true)**: 205/205 passing (100%)
 - **GFM tests**: 26/26 passing (100%)
 - **Skipped tests**: 337 (complex edge cases)
@@ -71,6 +71,7 @@ let doc = parse(source, strict=true)
 - [ ] **Link reference definitions**: Currently parsed but not fully utilized in serialization
 - [x] **Footnotes** (GFM extension): Implemented (FootnoteDefinition block, FootnoteReference inline)
 - [x] **Task lists**: Fully working (2/2 GFM tests pass)
+- [x] **HTML renderer**: `md_to_html()` and `render_html()` functions
 
 ## Low Priority
 
