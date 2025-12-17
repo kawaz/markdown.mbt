@@ -1,6 +1,23 @@
 ///| Inline-level markdown parser
 ///| Parses emphasis, strong, code, links, images, etc.
 
+///| Check if inlines array contains a link (used for nested link detection)
+fn contains_link(inlines : Array[Inline]) -> Bool {
+  for inline in inlines {
+    match inline {
+      Inline::Link(..) | Inline::RefLink(..) => return true
+      Inline::Emphasis(children~, ..) | Inline::Strong(children~, ..) |
+      Inline::Strikethrough(children~, ..) => {
+        if contains_link(children) {
+          return true
+        }
+      }
+      _ => ()
+    }
+  }
+  false
+}
+
 ///| Parse inline content from text
 pub fn parse_inlines(text : String) -> Array[Inline] {
   let scanner = Scanner::new(text)
@@ -566,6 +583,13 @@ fn InlineParser::try_parse_link(self : InlineParser, start : Int) -> Inline? {
       // Parse link text as inlines
       let children = parse_inlines(link_text)
 
+      // CommonMark: Links cannot contain other links
+      // If link text contains a link, the outer link is invalid
+      if contains_link(children) {
+        self.scanner.restore(start)
+        return None
+      }
+
       return Some(Inline::Link(
         children~,
         url~,
@@ -595,6 +619,12 @@ fn InlineParser::try_parse_link(self : InlineParser, start : Int) -> Inline? {
 
     let label = label_buf.to_string()
     let children = parse_inlines(link_text)
+
+    // CommonMark: Links cannot contain other links
+    if contains_link(children) {
+      self.scanner.restore(start)
+      return None
+    }
 
     return Some(Inline::RefLink(
       children~,
