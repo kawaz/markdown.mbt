@@ -42,7 +42,7 @@ test "render link with title" {
 
 test "render image" {
   let html = md_to_html("![alt](image.png)\n")
-  inspect(html, content="<p><img src=\"image.png\" alt=\"alt\" /></p>\n")
+  inspect(html, content="<p><img src=\"image.png\" alt=\"alt\"></p>\n")
 }
 
 test "render bullet list" {
@@ -62,12 +62,12 @@ test "render blockquote" {
 
 test "render thematic break" {
   let html = md_to_html("---\n")
-  inspect(html, content="<hr />\n")
+  inspect(html, content="<hr>\n")
 }
 
 test "render task list" {
   let html = md_to_html("- [ ] todo\n- [x] done\n")
-  inspect(html, content="<ul>\n<li><input type=\"checkbox\" disabled /> todo</li>\n<li><input type=\"checkbox\" checked disabled /> done</li>\n</ul>\n")
+  inspect(html, content="<ul class=\"contains-task-list\">\n<li class=\"task-list-item\"><input type=\"checkbox\" disabled> todo</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" checked disabled> done</li>\n</ul>\n")
 }
 
 test "render table" {

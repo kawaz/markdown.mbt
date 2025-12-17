@@ -30,7 +30,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
     }
 
     Block::ThematicBreak(..) => {
-      buf.write_string("<hr />\n")
+      buf.write_string("<hr>\n")
     }
 
     Block::FencedCode(info~, code~, ..) => {
@@ -63,23 +63,38 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
     }
 
     Block::BulletList(items~, tight~, ..) => {
-      buf.write_string("<ul>\n")
+      // Check if this list contains task items
+      let has_task = items.iter().any(fn(item) { not(item.checked is None) })
+      if has_task {
+        buf.write_string("<ul class=\"contains-task-list\">\n")
+      } else {
+        buf.write_string("<ul>\n")
+      }
       for item in items {
-        render_list_item_html(item, buf, tight)
+        render_list_item_html(item, buf, tight, has_task)
       }
       buf.write_string("</ul>\n")
     }
 
     Block::OrderedList(items~, start~, tight~, ..) => {
+      let has_task = items.iter().any(fn(item) { not(item.checked is None) })
       if start == 1 {
-        buf.write_string("<ol>\n")
+        if has_task {
+          buf.write_string("<ol class=\"contains-task-list\">\n")
+        } else {
+          buf.write_string("<ol>\n")
+        }
       } else {
-        buf.write_string("<ol start=\"")
+        if has_task {
+          buf.write_string("<ol class=\"contains-task-list\" start=\"")
+        } else {
+          buf.write_string("<ol start=\"")
+        }
         buf.write_string(start.to_string())
         buf.write_string("\">\n")
       }
       for item in items {
-        render_list_item_html(item, buf, tight)
+        render_list_item_html(item, buf, tight, has_task)
       }
       buf.write_string("</ol>\n")
     }
@@ -128,13 +143,18 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
 }
 
 ///| Render a list item to HTML
-fn render_list_item_html(item : ListItem, buf : StringBuilder, tight : Bool) -> Unit {
-  buf.write_string("<li>")
+fn render_list_item_html(item : ListItem, buf : StringBuilder, tight : Bool, is_task_list : Bool) -> Unit {
+  // Task list items get a special class
+  if is_task_list && not(item.checked is None) {
+    buf.write_string("<li class=\"task-list-item\">")
+  } else {
+    buf.write_string("<li>")
+  }
 
   // Task list checkbox
   match item.checked {
-    Some(true) => buf.write_string("<input type=\"checkbox\" checked disabled /> ")
-    Some(false) => buf.write_string("<input type=\"checkbox\" disabled /> ")
+    Some(true) => buf.write_string("<input type=\"checkbox\" checked disabled> ")
+    Some(false) => buf.write_string("<input type=\"checkbox\" disabled> ")
     None => ()
   }
 
@@ -257,7 +277,7 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
         buf.write_string(escape_html_attr(title))
         buf.write_char('"')
       }
-      buf.write_string(" />")
+      buf.write_string(">")
     }
 
     Inline::RefImage(alt~, label~, ..) => {
@@ -278,7 +298,7 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
     }
 
     Inline::HardBreak(..) => {
-      buf.write_string("<br />\n")
+      buf.write_string("<br>\n")
     }
 
     Inline::FootnoteReference(label~, ..) => {
