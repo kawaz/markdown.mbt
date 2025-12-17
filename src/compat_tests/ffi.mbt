@@ -1,13 +1,15 @@
 ///| FFI bindings for remark compatibility testing
+
 ///| This file is JS-target only
 
-///| Call remark to process markdown (sync via require)
-///| Returns stringified result from remark
+///| Call remark with GFM support to process markdown (sync via require)
+
 ///|
-///| @target js
+/// Returns stringified result from remark
 pub extern "js" fn remark_stringify(input : String) -> String =
   #| (input) => {
   #|   const { remark } = require('remark');
-  #|   const result = remark().processSync(input);
+  #|   const remarkGfm = require('remark-gfm').default;
+  #|   const result = remark().use(remarkGfm).processSync(input);
   #|   return String(result);
   #| }

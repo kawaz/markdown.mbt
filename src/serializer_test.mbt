@@ -39,7 +39,8 @@ test "serialize thematic break" {
   let source = "text\n\n---\n"
   let result = parse(source)
   let output = serialize(result.document)
-  inspect(output.contains("---"), content="true")
+  // Output is normalized to *** for GFM compatibility
+  inspect(output.contains("***"), content="true")
 }
 
 test "serialize blockquote" {
@@ -53,7 +54,8 @@ test "serialize bullet list" {
   let source = "- Item 1\n- Item 2\n"
   let result = parse(source)
   let output = serialize(result.document)
-  inspect(output, content="- Item 1\n- Item 2\n")
+  // Output is normalized to * for GFM compatibility
+  inspect(output, content="* Item 1\n* Item 2\n")
 }
 
 test "serialize frontmatter roundtrip" {

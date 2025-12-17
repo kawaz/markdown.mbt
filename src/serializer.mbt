@@ -38,9 +38,10 @@ fn write_chars(buf : StringBuilder, c : Char, n : Int) -> Unit {
 ///| Serialize a block
 fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
   match block {
-    Block::ThematicBreak(marker~, count~, leading_trivia~, trailing_trivia~, ..) => {
+    Block::ThematicBreak(leading_trivia~, trailing_trivia~, ..) => {
       buf.write_string(leading_trivia.content)
-      write_chars(buf, marker, count)
+      // Always use *** for GFM compatibility (remark default)
+      buf.write_string("***")
       buf.write_string(trailing_trivia.content)
       if not(trailing_trivia.content.has_suffix("\n")) {
         buf.write_char('\n')
@@ -140,13 +141,10 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
       buf.write_string(trailing_trivia.content)
     }
 
-    Block::BulletList(marker~, items~, leading_trivia~, trailing_trivia~, ..) => {
+    Block::BulletList(items~, leading_trivia~, trailing_trivia~, ..) => {
       buf.write_string(leading_trivia.content)
-      let marker_char = match marker {
-        BulletMarker::Dash => '-'
-        BulletMarker::Asterisk => '*'
-        BulletMarker::Plus => '+'
-      }
+      // Always use * for GFM compatibility (remark default)
+      let marker_char = '*'
       for item in items {
         // Write leading spaces for marker
         write_chars(buf, ' ', item.marker_offset)
@@ -272,26 +270,18 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       }
     }
 
-    Inline::Emphasis(marker~, children~, ..) => {
-      let marker_char = match marker {
-        EmphasisMarker::Asterisk => '*'
-        EmphasisMarker::Underscore => '_'
-      }
-      buf.write_char(marker_char)
+    Inline::Emphasis(children~, ..) => {
+      // Always use * for GFM compatibility (remark default)
+      buf.write_char('*')
       serialize_inlines(children, buf)
-      buf.write_char(marker_char)
+      buf.write_char('*')
     }
 
-    Inline::Strong(marker~, children~, ..) => {
-      let marker_char = match marker {
-        EmphasisMarker::Asterisk => '*'
-        EmphasisMarker::Underscore => '_'
-      }
-      buf.write_char(marker_char)
-      buf.write_char(marker_char)
+    Inline::Strong(children~, ..) => {
+      // Always use ** for GFM compatibility (remark default)
+      buf.write_string("**")
       serialize_inlines(children, buf)
-      buf.write_char(marker_char)
-      buf.write_char(marker_char)
+      buf.write_string("**")
     }
 
     Inline::Strikethrough(children~, ..) => {

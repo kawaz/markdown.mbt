@@ -13,5 +13,6 @@
     "gfm"
   ],
   "description": "CST-based incremental Markdown parser for MoonBit",
-  "source": "src"
+  "source": "src",
+  "preferred-target": "js"
 }

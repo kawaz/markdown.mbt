@@ -1177,6 +1177,7 @@ fn BlockParser::try_parse_frontmatter(self : BlockParser) -> Frontmatter? {
 
   // Read YAML content until closing ---
   let yaml_buf = StringBuilder::new()
+  let mut found_closing = false
   while not(self.scanner.is_eof()) {
     if self.scanner.matches("---") {
       self.scanner.advance(3)
@@ -1185,6 +1186,7 @@ fn BlockParser::try_parse_frontmatter(self : BlockParser) -> Frontmatter? {
         if char_is(self.scanner.peek(), '\n') {
           self.scanner.advance(1)
         }
+        found_closing = true
         break
       }
       // Not a valid closing, continue reading
@@ -1197,6 +1199,12 @@ fn BlockParser::try_parse_frontmatter(self : BlockParser) -> Frontmatter? {
         self.scanner.advance(1)
       }
     }
+  }
+
+  // Must have found closing --- to be valid frontmatter
+  if not(found_closing) {
+    self.scanner.restore(start)
+    return None
   }
 
   let raw = yaml_buf.to_string()

@@ -14,5 +14,8 @@
     "remark": "^15.0.1",
     "remark-stringify": "^11.0.0",
     "unified": "^11.0.5"
+  },
+  "devDependencies": {
+    "remark-gfm": "^4.0.1"
   }
 }

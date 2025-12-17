@@ -1,8 +1,5 @@
 {
   "import": [
     "mizchi/markdown"
-  ],
-  "test-import": [
-    "mizchi/markdown"
   ]
 }
