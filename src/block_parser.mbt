@@ -919,11 +919,12 @@ fn BlockParser::parse_paragraph(self : BlockParser, start : Int) -> Block? {
         break
       }
       // Only break for fenced code if 3+ backticks/tildes
-      Some('`') if self.scanner.count_char('`') >= 3 => {
+      // Use peek_at for O(1) check instead of count_char
+      Some('`') if self.scanner.peek_at(1) == Some('`') && self.scanner.peek_at(2) == Some('`') => {
         self.scanner.restore(saved)
         break
       }
-      Some('~') if self.scanner.count_char('~') >= 3 => {
+      Some('~') if self.scanner.peek_at(1) == Some('~') && self.scanner.peek_at(2) == Some('~') => {
         self.scanner.restore(saved)
         break
       }

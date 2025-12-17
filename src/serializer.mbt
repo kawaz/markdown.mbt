@@ -51,29 +51,46 @@ fn write_chars(buf : StringBuilder, c : Char, n : Int) -> Unit {
 ///| Calculate minimum backticks for code span
 ///| Returns the smallest count that doesn't match any backtick run in content
 fn calc_code_span_backticks(content : String) -> Int {
-  // Collect all run lengths
-  let runs : Array[Int] = []
+  // Track which run lengths exist using a simple bitmask for small values
+  // For runs > 63, we fall back to max_run + 1
+  let mut run_mask : UInt64 = 0  // bit N set means run of length N exists
+  let mut max_run = 0
   let mut current_run = 0
   for c in content {
     if c == '`' {
       current_run += 1
     } else {
       if current_run > 0 {
-        runs.push(current_run)
+        if current_run <= 63 {
+          run_mask = run_mask | (1UL << current_run)
+        }
+        if current_run > max_run {
+          max_run = current_run
+        }
         current_run = 0
       }
     }
   }
   if current_run > 0 {
-    runs.push(current_run)
+    if current_run <= 63 {
+      run_mask = run_mask | (1UL << current_run)
+    }
+    if current_run > max_run {
+      max_run = current_run
+    }
   }
 
   // Find minimum N that is not in runs
   let mut n = 1
-  while runs.contains(n) {
+  while n <= 63 && (run_mask & (1UL << n)) != 0 {
     n += 1
   }
-  n
+  // If we exceeded 63, use max_run + 1
+  if n > 63 {
+    max_run + 1
+  } else {
+    n
+  }
 }
 
 ///| Calculate minimum fence length for code block
