@@ -1,9 +1,18 @@
 ///| Token types for multi-pass inline parsing
 ///| Based on cmark's architecture
 ///|
-///| NOTE: This is an experimental implementation not yet integrated into the main parser.
-///| Benchmarks show it's faster for small inputs but slower for large inputs.
-///| See docs/compare_cmark.md for details.
+///| EXPERIMENTAL: This parser is NOT used by default.
+///| Use `parse_inlines_multipass(text)` to test it directly.
+///|
+///| Performance comparison (vs original single-pass parser):
+///| - Simple text: equivalent
+///| - Emphasis/links: 28-35% slower
+///| - Stress tests (150+ markers): 87% slower
+///|
+///| CommonMark compatibility: 187/542 (vs 202/542 for original)
+///|
+///| The multipass approach requires further optimization before production use.
+///| See docs/compare_cmark.md for detailed analysis.
 
 ///| Inline token for multi-pass processing
 priv enum InlineToken {
@@ -23,8 +32,8 @@ priv enum InlineToken {
   AngleStart(Int)
   /// Strikethrough: ~~
   Strikethrough(Int, Bool, Bool)
-  /// Newline with break type
-  Newline(Int, Bool) // position, is_hard_break
+  /// Newline with break type: position, is_hard_break, is_backslash_break
+  Newline(Int, Bool, Bool) // position, is_hard_break (spaces), is_backslash_break
   /// Already parsed inline
   Parsed(Int, Inline, Int) // start, inline, next_pos
 }
@@ -40,7 +49,7 @@ fn InlineToken::start(self : InlineToken) -> Int {
     RightParen(s) => s
     AngleStart(s) => s
     Strikethrough(s, _, _) => s
-    Newline(s, _) => s
+    Newline(s, _, _) => s
     Parsed(s, _, _) => s
   }
 }
@@ -200,9 +209,10 @@ fn tokenize_inline(scanner : Scanner) -> Array[InlineToken] {
         prev_backslash = false
       }
       '\n' => {
-        // Check for hard break (two spaces before newline)
-        let is_hard = prev_char == ' '
-        tokens.push(InlineToken::Newline(start, is_hard))
+        // Check for hard break (two spaces before newline or backslash)
+        let is_space_hard = prev_char == ' '
+        let is_backslash_hard = prev_backslash
+        tokens.push(InlineToken::Newline(start, is_space_hard, is_backslash_hard))
         scanner.advance(1)
         prev_char = ' ' // Start of new line
         prev_backslash = false
@@ -365,6 +375,668 @@ fn emphasis_mod3_match(
   opener_count % 3 == 0 || closer_count % 3 == 0
 }
 
+///| Parse code span starting at given token
+fn MultiPassParser::parse_code_span(
+  self : MultiPassParser,
+  opener_idx : Int,
+  text_end : Int
+) -> (Inline, Int)? {
+  guard opener_idx < self.tokens.length() else { return None }
+  let opener = self.tokens[opener_idx]
+
+  guard opener is Backticks(opener_start, backtick_count, escaped) else {
+    return None
+  }
+  guard not(escaped) else { return None }
+
+  // Find matching closing backticks (same count)
+  let content_start = opener_start + backtick_count
+
+  for i = opener_idx + 1; i < self.tokens.length(); i = i + 1 {
+    let tok = self.tokens[i]
+    guard tok.start() < text_end else { break }
+
+    match tok {
+      Backticks(closer_start, closer_count, _) if closer_count == backtick_count => {
+        // Found matching closer
+        let content = self.substring(content_start, closer_start)
+
+        // Trim single leading/trailing space if present and content has them
+        // But NOT if content is entirely spaces
+        let trimmed = if content.length() >= 2 {
+          let first = content.get_char(0)
+          let last = content.get_char(content.length() - 1)
+          if first == Some(' ') && last == Some(' ') && not(is_all_spaces_mp(content)) {
+            content.substring(start=1, end=content.length() - 1)
+          } else {
+            content
+          }
+        } else {
+          content
+        }
+
+        let end_pos = closer_start + closer_count
+        let inline = Inline::Code(
+          content=trimmed,
+          backtick_count~,
+          span=Span::new(opener_start, end_pos),
+        )
+        return Some((inline, end_pos))
+      }
+      _ => ()
+    }
+  }
+
+  None
+}
+
+///| Check if a string is entirely space characters
+fn is_all_spaces_mp(s : String) -> Bool {
+  for c in s {
+    if c != ' ' {
+      return false
+    }
+  }
+  true
+}
+
+///| Check if inlines contain a link (for nested link detection)
+fn contains_link_mp(inlines : Array[Inline]) -> Bool {
+  for inline in inlines {
+    match inline {
+      Inline::Link(..) | Inline::RefLink(..) => return true
+      Inline::Emphasis(children~, ..) | Inline::Strong(children~, ..) |
+      Inline::Strikethrough(children~, ..) => {
+        if contains_link_mp(children) {
+          return true
+        }
+      }
+      _ => ()
+    }
+  }
+  false
+}
+
+///| Parse link starting at given token (LinkStart)
+fn MultiPassParser::parse_link(
+  self : MultiPassParser,
+  opener_idx : Int,
+  text_end : Int
+) -> (Inline, Int)? {
+  guard opener_idx < self.tokens.length() else { return None }
+  let opener = self.tokens[opener_idx]
+
+  guard opener is LinkStart(opener_start) else { return None }
+
+  // Find matching right bracket ]
+  let mut bracket_depth = 1
+  let mut bracket_pos : Int? = None
+  let mut bracket_idx : Int? = None
+  let content_start = opener_start + 1
+
+  for i = opener_idx + 1; i < self.tokens.length(); i = i + 1 {
+    let tok = self.tokens[i]
+    let tok_pos = tok.start()
+    guard tok_pos < text_end else { break }
+
+    match tok {
+      LinkStart(_) => bracket_depth += 1
+      RightBrack(pos) => {
+        bracket_depth -= 1
+        if bracket_depth == 0 {
+          bracket_pos = Some(pos)
+          bracket_idx = Some(i)
+          break
+        }
+      }
+      _ => ()
+    }
+  }
+
+  guard bracket_pos is Some(brack_pos) else { return None }
+  guard bracket_idx is Some(brack_i) else { return None }
+
+  let link_text = self.substring(content_start, brack_pos)
+
+  // Check what follows the ]
+  let after_brack = brack_pos + 1
+  guard after_brack < self.chars.length() else { return None }
+  let next_char = self.chars[after_brack]
+
+  if next_char == '(' {
+    // Inline link: [text](url "title")
+    match self.parse_inline_link_dest(after_brack + 1, text_end, opener_start, link_text, brack_i) {
+      Some(result) => return Some(result)
+      None => return None
+    }
+  } else if next_char == '[' {
+    // Reference link: [text][ref]
+    match self.parse_ref_link(after_brack + 1, text_end, opener_start, link_text) {
+      Some(result) => return Some(result)
+      None => return None
+    }
+  }
+
+  None
+}
+
+///| Parse inline link destination and title
+fn MultiPassParser::parse_inline_link_dest(
+  self : MultiPassParser,
+  start : Int,
+  text_end : Int,
+  link_start : Int,
+  link_text : String,
+  text_end_token_idx : Int
+) -> (Inline, Int)? {
+  let mut pos = start
+
+  // Skip leading whitespace
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ' ' || c == '\t' {
+      pos += 1
+    } else {
+      break
+    }
+  }
+
+  guard pos < self.chars.length() && pos < text_end else { return None }
+
+  // Parse URL
+  let url_buf = StringBuilder::new()
+  let c = self.chars[pos]
+
+  if c == '<' {
+    // Angle-bracketed URL
+    pos += 1
+    while pos < self.chars.length() && pos < text_end {
+      let uc = self.chars[pos]
+      if uc == '>' {
+        pos += 1
+        break
+      } else if uc == '\n' {
+        return None  // Newline in angle-bracket URL invalidates
+      } else {
+        url_buf.write_char(uc)
+        pos += 1
+      }
+    }
+  } else {
+    // Regular URL
+    let mut paren_depth = 1
+    while pos < self.chars.length() && pos < text_end {
+      let uc = self.chars[pos]
+      if uc == '(' {
+        paren_depth += 1
+        url_buf.write_char('(')
+        pos += 1
+      } else if uc == ')' {
+        paren_depth -= 1
+        if paren_depth == 0 {
+          break
+        }
+        url_buf.write_char(')')
+        pos += 1
+      } else if uc == ' ' || uc == '\t' {
+        break  // End of URL
+      } else if uc == '\n' {
+        return None  // Newline in URL invalidates
+      } else {
+        url_buf.write_char(uc)
+        pos += 1
+      }
+    }
+  }
+
+  let url = url_buf.to_string()
+
+  // Skip whitespace before title
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ' ' || c == '\t' || c == '\n' {
+      pos += 1
+    } else {
+      break
+    }
+  }
+
+  // Parse optional title
+  let title = if pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == '"' || c == '\'' {
+      let quote = c
+      pos += 1
+      let title_buf = StringBuilder::new()
+      while pos < self.chars.length() && pos < text_end {
+        let tc = self.chars[pos]
+        if tc == quote {
+          pos += 1
+          break
+        } else if tc == '\\' && pos + 1 < self.chars.length() {
+          pos += 1
+          title_buf.write_char(self.chars[pos])
+          pos += 1
+        } else {
+          title_buf.write_char(tc)
+          pos += 1
+        }
+      }
+      title_buf.to_string()
+    } else {
+      ""
+    }
+  } else {
+    ""
+  }
+
+  // Skip trailing whitespace
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ' ' || c == '\t' {
+      pos += 1
+    } else {
+      break
+    }
+  }
+
+  // Must end with )
+  guard pos < self.chars.length() && self.chars[pos] == ')' else { return None }
+  pos += 1
+
+  // Parse link text as inlines
+  let children = self.parse_range(link_start + 1, link_start + 1 + link_text.length(), 0, text_end_token_idx)
+
+  // Check for nested links
+  if contains_link_mp(children) {
+    return None
+  }
+
+  let inline = Inline::Link(
+    children~,
+    url~,
+    title~,
+    span=Span::new(link_start, pos),
+  )
+  Some((inline, pos))
+}
+
+///| Parse reference link [text][ref]
+fn MultiPassParser::parse_ref_link(
+  self : MultiPassParser,
+  start : Int,
+  text_end : Int,
+  link_start : Int,
+  link_text : String
+) -> (Inline, Int)? {
+  let mut pos = start
+  let label_buf = StringBuilder::new()
+
+  // Parse label until ]
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ']' {
+      pos += 1
+      break
+    } else {
+      label_buf.write_char(c)
+      pos += 1
+    }
+  }
+
+  let label = label_buf.to_string()
+  let children = parse_inlines_multipass(link_text)
+
+  // Check for nested links
+  if contains_link_mp(children) {
+    return None
+  }
+
+  let inline = Inline::RefLink(
+    children~,
+    label~,
+    span=Span::new(link_start, pos),
+  )
+  Some((inline, pos))
+}
+
+///| Parse image starting at given token (ImageStart)
+fn MultiPassParser::parse_image(
+  self : MultiPassParser,
+  opener_idx : Int,
+  text_end : Int
+) -> (Inline, Int)? {
+  guard opener_idx < self.tokens.length() else { return None }
+  let opener = self.tokens[opener_idx]
+
+  guard opener is ImageStart(opener_start) else { return None }
+
+  // Find matching right bracket ] (ImageStart is at !, so [ is at opener_start + 1)
+  let mut bracket_depth = 1
+  let mut bracket_pos : Int? = None
+  let content_start = opener_start + 2  // Skip ![
+
+  for i = opener_idx + 1; i < self.tokens.length(); i = i + 1 {
+    let tok = self.tokens[i]
+    let tok_pos = tok.start()
+    guard tok_pos < text_end else { break }
+
+    match tok {
+      LinkStart(_) | ImageStart(_) => bracket_depth += 1
+      RightBrack(pos) => {
+        bracket_depth -= 1
+        if bracket_depth == 0 {
+          bracket_pos = Some(pos)
+          break
+        }
+      }
+      _ => ()
+    }
+  }
+
+  guard bracket_pos is Some(brack_pos) else { return None }
+
+  let alt = self.substring(content_start, brack_pos)
+
+  // Check what follows the ]
+  let after_brack = brack_pos + 1
+  guard after_brack < self.chars.length() else { return None }
+  let next_char = self.chars[after_brack]
+
+  if next_char == '(' {
+    // Inline image: ![alt](url "title")
+    match self.parse_image_dest(after_brack + 1, text_end, opener_start, alt) {
+      Some(result) => return Some(result)
+      None => return None
+    }
+  } else if next_char == '[' {
+    // Reference image: ![alt][ref]
+    match self.parse_ref_image(after_brack + 1, text_end, opener_start, alt) {
+      Some(result) => return Some(result)
+      None => return None
+    }
+  }
+
+  None
+}
+
+///| Parse inline image destination and title
+fn MultiPassParser::parse_image_dest(
+  self : MultiPassParser,
+  start : Int,
+  text_end : Int,
+  image_start : Int,
+  alt : String
+) -> (Inline, Int)? {
+  let mut pos = start
+
+  // Skip leading whitespace
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ' ' || c == '\t' {
+      pos += 1
+    } else {
+      break
+    }
+  }
+
+  guard pos < self.chars.length() && pos < text_end else { return None }
+
+  // Parse URL
+  let url_buf = StringBuilder::new()
+  let c = self.chars[pos]
+
+  if c == '<' {
+    // Angle-bracketed URL
+    pos += 1
+    while pos < self.chars.length() && pos < text_end {
+      let uc = self.chars[pos]
+      if uc == '>' {
+        pos += 1
+        break
+      } else {
+        url_buf.write_char(uc)
+        pos += 1
+      }
+    }
+  } else {
+    // Regular URL
+    while pos < self.chars.length() && pos < text_end {
+      let uc = self.chars[pos]
+      if uc == ')' || uc == ' ' || uc == '\t' {
+        break
+      } else {
+        url_buf.write_char(uc)
+        pos += 1
+      }
+    }
+  }
+
+  let url = url_buf.to_string()
+
+  // Skip whitespace
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ' ' || c == '\t' {
+      pos += 1
+    } else {
+      break
+    }
+  }
+
+  // Parse optional title
+  let title = if pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == '"' || c == '\'' {
+      let quote = c
+      pos += 1
+      let title_buf = StringBuilder::new()
+      while pos < self.chars.length() && pos < text_end {
+        let tc = self.chars[pos]
+        if tc == quote {
+          pos += 1
+          break
+        } else {
+          title_buf.write_char(tc)
+          pos += 1
+        }
+      }
+      title_buf.to_string()
+    } else {
+      ""
+    }
+  } else {
+    ""
+  }
+
+  // Skip trailing whitespace
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ' ' || c == '\t' {
+      pos += 1
+    } else {
+      break
+    }
+  }
+
+  // Must end with )
+  guard pos < self.chars.length() && self.chars[pos] == ')' else { return None }
+  pos += 1
+
+  let inline = Inline::Image(
+    alt~,
+    url~,
+    title~,
+    span=Span::new(image_start, pos),
+  )
+  Some((inline, pos))
+}
+
+///| Parse reference image ![alt][ref]
+fn MultiPassParser::parse_ref_image(
+  self : MultiPassParser,
+  start : Int,
+  text_end : Int,
+  image_start : Int,
+  alt : String
+) -> (Inline, Int)? {
+  let mut pos = start
+  let label_buf = StringBuilder::new()
+
+  // Parse label until ]
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == ']' {
+      pos += 1
+      break
+    } else {
+      label_buf.write_char(c)
+      pos += 1
+    }
+  }
+
+  let label = label_buf.to_string()
+
+  let inline = Inline::RefImage(
+    alt~,
+    label~,
+    span=Span::new(image_start, pos),
+  )
+  Some((inline, pos))
+}
+
+///| Parse autolink starting at AngleStart token
+fn MultiPassParser::parse_autolink(
+  self : MultiPassParser,
+  start : Int,
+  text_end : Int
+) -> (Inline, Int)? {
+  let mut pos = start + 1  // Skip <
+  let url_buf = StringBuilder::new()
+
+  // Scan until >
+  while pos < self.chars.length() && pos < text_end {
+    let c = self.chars[pos]
+    if c == '>' {
+      let url = url_buf.to_string()
+      if url.length() == 0 {
+        return None
+      }
+      pos += 1
+
+      // Check if it's an email
+      let is_email = url.contains("@") && not(url.has_prefix("http"))
+
+      let inline = Inline::Autolink(
+        url~,
+        is_email~,
+        span=Span::new(start, pos),
+      )
+      return Some((inline, pos))
+    } else if c == ' ' || c == '\t' || c == '\n' {
+      // Invalid autolink
+      return None
+    } else {
+      url_buf.write_char(c)
+      pos += 1
+    }
+  }
+
+  None
+}
+
+///| Parse strikethrough starting at Strikethrough token
+fn MultiPassParser::parse_strikethrough(
+  self : MultiPassParser,
+  opener_idx : Int,
+  text_end : Int
+) -> (Inline, Int)? {
+  guard opener_idx < self.tokens.length() else { return None }
+  let opener = self.tokens[opener_idx]
+
+  guard opener is Strikethrough(opener_start, may_open, _) else { return None }
+  guard may_open else { return None }
+
+  // Find closing ~~
+  for i = opener_idx + 1; i < self.tokens.length(); i = i + 1 {
+    let tok = self.tokens[i]
+    guard tok.start() < text_end else { break }
+
+    match tok {
+      Strikethrough(closer_start, _, may_close) if may_close => {
+        // Found closing
+        let content = self.substring(opener_start + 2, closer_start)
+        if content.length() == 0 {
+          return None
+        }
+
+        let children = [Inline::Text(
+          content~,
+          span=Span::new(opener_start + 2, closer_start),
+        )]
+
+        let inline = Inline::Strikethrough(
+          children~,
+          span=Span::new(opener_start, closer_start + 2),
+        )
+        return Some((inline, closer_start + 2))
+      }
+      _ => ()
+    }
+  }
+
+  None
+}
+
+///| Process escapes in a text segment
+fn process_escapes(chars : Array[Char], start : Int, end : Int, result : Array[Inline]) -> Unit {
+  let buf = StringBuilder::new()
+  let mut i = start
+  let mut text_start = start
+
+  while i < end {
+    let c = chars[i]
+    if c == '\\' && i + 1 < end {
+      let next = chars[i + 1]
+      if next == '\n' {
+        // Backslash + newline = hard break
+        if buf.to_string().length() > 0 {
+          result.push(Inline::Text(content=buf.to_string(), span=Span::new(text_start, i)))
+          buf.reset()
+        }
+        result.push(Inline::HardBreak(style=HardBreakStyle::Backslash, span=Span::new(i, i + 2)))
+        i += 2
+        text_start = i
+      } else if is_punctuation_mp(next) {
+        // Escaped punctuation
+        buf.write_char(next)
+        i += 2
+      } else {
+        // Not a valid escape, keep backslash
+        buf.write_char('\\')
+        i += 1
+      }
+    } else {
+      buf.write_char(c)
+      i += 1
+    }
+  }
+
+  let content = buf.to_string()
+  if content.length() > 0 {
+    result.push(Inline::Text(content~, span=Span::new(text_start, end)))
+  }
+}
+
+///| Check if character is ASCII punctuation
+fn is_punctuation_mp(c : Char) -> Bool {
+  let code = c.to_int()
+  (code >= 0x21 && code <= 0x2F) || // !"#$%&'()*+,-./
+  (code >= 0x3A && code <= 0x40) || // :;<=>?@
+  (code >= 0x5B && code <= 0x60) || // [\]^_`
+  (code >= 0x7B && code <= 0x7E)    // {|}~
+}
+
 ///| Parse emphasis using token-based approach
 fn MultiPassParser::parse_emphasis(
   self : MultiPassParser,
@@ -467,28 +1139,50 @@ fn MultiPassParser::parse_range(
 
     match found_tok {
       None => {
-        // No more tokens, add remaining text
+        // No more tokens, add remaining text with escape processing
         if pos < text_end {
-          let content = self.substring(pos, text_end)
-          if content.length() > 0 {
-            result.push(Inline::Text(content~, span=Span::new(pos, text_end)))
-          }
+          process_escapes(self.chars, pos, text_end, result)
         }
         break
       }
       Some((idx, tok)) => {
         let tok_start = tok.start()
 
-        // Add text before token
+        // Add text before token with escape processing
         if pos < tok_start {
-          let content = self.substring(pos, tok_start)
-          if content.length() > 0 {
-            result.push(Inline::Text(content~, span=Span::new(pos, tok_start)))
-          }
+          process_escapes(self.chars, pos, tok_start, result)
         }
 
         // Process token
         match tok {
+          Backticks(_, count, escaped) => {
+            if not(escaped) {
+              match self.parse_code_span(idx, text_end) {
+                Some((inline, next_pos)) => {
+                  result.push(inline)
+                  pos = next_pos
+                  tok_idx = idx + 1
+                  while tok_idx < token_end && self.tokens[tok_idx].start() < next_pos {
+                    tok_idx += 1
+                  }
+                  continue
+                }
+                None => {
+                  // No matching closer, add backticks as text
+                  let text = self.substring(tok_start, tok_start + count)
+                  result.push(Inline::Text(content=text, span=Span::new(tok_start, tok_start + count)))
+                  pos = tok_start + count
+                  tok_idx = idx + 1
+                }
+              }
+            } else {
+              // Escaped backtick, add as text
+              let text = self.substring(tok_start, tok_start + count)
+              result.push(Inline::Text(content=text, span=Span::new(tok_start, tok_start + count)))
+              pos = tok_start + count
+              tok_idx = idx + 1
+            }
+          }
           EmphasisMarks(_, _, count, may_open, _) => {
             if may_open {
               match self.parse_emphasis(idx, text_end) {
@@ -520,8 +1214,107 @@ fn MultiPassParser::parse_range(
               tok_idx = idx + 1
             }
           }
-          Newline(_, is_hard) => {
-            if is_hard {
+          LinkStart(_) => {
+            match self.parse_link(idx, text_end) {
+              Some((inline, next_pos)) => {
+                result.push(inline)
+                pos = next_pos
+                tok_idx = idx + 1
+                while tok_idx < token_end && self.tokens[tok_idx].start() < next_pos {
+                  tok_idx += 1
+                }
+                continue
+              }
+              None => {
+                // Not a valid link, add [ as text
+                result.push(Inline::Text(content="[", span=Span::new(tok_start, tok_start + 1)))
+                pos = tok_start + 1
+                tok_idx = idx + 1
+              }
+            }
+          }
+          ImageStart(_) => {
+            match self.parse_image(idx, text_end) {
+              Some((inline, next_pos)) => {
+                result.push(inline)
+                pos = next_pos
+                tok_idx = idx + 1
+                while tok_idx < token_end && self.tokens[tok_idx].start() < next_pos {
+                  tok_idx += 1
+                }
+                continue
+              }
+              None => {
+                // Not a valid image, add ![ as text
+                result.push(Inline::Text(content="![", span=Span::new(tok_start, tok_start + 2)))
+                pos = tok_start + 2
+                tok_idx = idx + 1
+              }
+            }
+          }
+          AngleStart(_) => {
+            match self.parse_autolink(tok_start, text_end) {
+              Some((inline, next_pos)) => {
+                result.push(inline)
+                pos = next_pos
+                tok_idx = idx + 1
+                while tok_idx < token_end && self.tokens[tok_idx].start() < next_pos {
+                  tok_idx += 1
+                }
+                continue
+              }
+              None => {
+                // Not a valid autolink, add < as text
+                result.push(Inline::Text(content="<", span=Span::new(tok_start, tok_start + 1)))
+                pos = tok_start + 1
+                tok_idx = idx + 1
+              }
+            }
+          }
+          Strikethrough(_, may_open, _) => {
+            if may_open {
+              match self.parse_strikethrough(idx, text_end) {
+                Some((inline, next_pos)) => {
+                  result.push(inline)
+                  pos = next_pos
+                  tok_idx = idx + 1
+                  while tok_idx < token_end && self.tokens[tok_idx].start() < next_pos {
+                    tok_idx += 1
+                  }
+                  continue
+                }
+                None => {
+                  // Not valid strikethrough, add ~~ as text
+                  result.push(Inline::Text(content="~~", span=Span::new(tok_start, tok_start + 2)))
+                  pos = tok_start + 2
+                  tok_idx = idx + 1
+                }
+              }
+            } else {
+              // Closing without opener
+              result.push(Inline::Text(content="~~", span=Span::new(tok_start, tok_start + 2)))
+              pos = tok_start + 2
+              tok_idx = idx + 1
+            }
+          }
+          Newline(_, is_space_hard, is_backslash_hard) => {
+            if is_backslash_hard {
+              // Remove trailing backslash from previous text if any
+              match result.last() {
+                Some(Inline::Text(content~, span~)) if content.length() > 0 => {
+                  // Check if last char is backslash
+                  if content.get_char(content.length() - 1) == Some('\\') {
+                    let _ = result.pop()
+                    if content.length() > 1 {
+                      let new_content = content.substring(end=content.length() - 1)
+                      result.push(Inline::Text(content=new_content, span=Span::new(span.from, span.to - 1)))
+                    }
+                  }
+                }
+                _ => ()
+              }
+              result.push(Inline::HardBreak(style=HardBreakStyle::Backslash, span=Span::new(tok_start - 1, tok_start + 1)))
+            } else if is_space_hard {
               result.push(Inline::HardBreak(style=HardBreakStyle::TwoSpaces, span=Span::new(tok_start, tok_start + 1)))
             } else {
               result.push(Inline::SoftBreak(span=Span::new(tok_start, tok_start + 1)))
@@ -733,4 +1526,174 @@ test "multipass: unclosed marker" {
   let result = parse_inlines_multipass("*unclosed")
   // Should be treated as plain text
   assert_eq(result.length(), 2) // "*" + "unclosed"
+}
+
+test "multipass: code span" {
+  let result = parse_inlines_multipass("`code`")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Code(content~, backtick_count~, ..) => {
+      assert_eq(content, "code")
+      assert_eq(backtick_count, 1)
+    }
+    _ => fail("Expected Code")
+  }
+}
+
+test "multipass: double backtick code span" {
+  let result = parse_inlines_multipass("``code with ` backtick``")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Code(content~, backtick_count~, ..) => {
+      assert_eq(content, "code with ` backtick")
+      assert_eq(backtick_count, 2)
+    }
+    _ => fail("Expected Code")
+  }
+}
+
+test "multipass: code span with space trimming" {
+  let result = parse_inlines_multipass("` code `")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Code(content~, ..) => {
+      assert_eq(content, "code")  // Spaces trimmed
+    }
+    _ => fail("Expected Code")
+  }
+}
+
+test "multipass: inline link" {
+  let result = parse_inlines_multipass("[text](url)")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Link(children~, url~, ..) => {
+      assert_eq(url, "url")
+      assert_eq(children.length(), 1)
+    }
+    _ => fail("Expected Link")
+  }
+}
+
+test "multipass: link with title" {
+  let result = parse_inlines_multipass("[text](url \"title\")")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Link(url~, title~, ..) => {
+      assert_eq(url, "url")
+      assert_eq(title, "title")
+    }
+    _ => fail("Expected Link")
+  }
+}
+
+test "multipass: reference link" {
+  let result = parse_inlines_multipass("[text][ref]")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::RefLink(label~, ..) => {
+      assert_eq(label, "ref")
+    }
+    _ => fail("Expected RefLink")
+  }
+}
+
+test "multipass: inline image" {
+  let result = parse_inlines_multipass("![alt](url)")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Image(alt~, url~, ..) => {
+      assert_eq(alt, "alt")
+      assert_eq(url, "url")
+    }
+    _ => fail("Expected Image")
+  }
+}
+
+test "multipass: reference image" {
+  let result = parse_inlines_multipass("![alt][ref]")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::RefImage(alt~, label~, ..) => {
+      assert_eq(alt, "alt")
+      assert_eq(label, "ref")
+    }
+    _ => fail("Expected RefImage")
+  }
+}
+
+test "multipass: autolink url" {
+  let result = parse_inlines_multipass("<http://example.com>")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Autolink(url~, is_email~, ..) => {
+      assert_eq(url, "http://example.com")
+      assert_eq(is_email, false)
+    }
+    _ => fail("Expected Autolink")
+  }
+}
+
+test "multipass: autolink email" {
+  let result = parse_inlines_multipass("<test@example.com>")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Autolink(url~, is_email~, ..) => {
+      assert_eq(url, "test@example.com")
+      assert_eq(is_email, true)
+    }
+    _ => fail("Expected Autolink")
+  }
+}
+
+test "multipass: strikethrough" {
+  let result = parse_inlines_multipass("~~deleted~~")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Strikethrough(children~, ..) => {
+      assert_eq(children.length(), 1)
+      match children[0] {
+        Inline::Text(content~, ..) => assert_eq(content, "deleted")
+        _ => fail("Expected Text")
+      }
+    }
+    _ => fail("Expected Strikethrough")
+  }
+}
+
+test "multipass: escaped asterisk" {
+  let result = parse_inlines_multipass("\\*not emphasis\\*")
+  // Should be plain text "* not emphasis *"
+  assert_true(result.length() >= 1)
+  // The escaped asterisks should be literal text
+  let first = result[0]
+  match first {
+    Inline::Text(content~, ..) => assert_true(content.contains("*"))
+    _ => ()
+  }
+}
+
+test "multipass: escaped backslash" {
+  let result = parse_inlines_multipass("\\\\")
+  assert_eq(result.length(), 1)
+  match result[0] {
+    Inline::Text(content~, ..) => assert_eq(content, "\\")
+    _ => fail("Expected Text")
+  }
+}
+
+test "multipass: backslash newline hard break" {
+  let result = parse_inlines_multipass("line1\\\nline2")
+  // Should have text, hard break, text
+  let mut has_hard_break = false
+  for item in result {
+    match item {
+      Inline::HardBreak(style~, ..) => {
+        assert_eq(style, HardBreakStyle::Backslash)
+        has_hard_break = true
+      }
+      _ => ()
+    }
+  }
+  assert_true(has_hard_break)
 }
