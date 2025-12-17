@@ -79,7 +79,8 @@ pub fn md_free(handle : Int) -> Unit {
 }
 
 ///| Convenience: parse and immediately render (for roundtrip testing)
-pub fn md_parse_and_render(source : String) -> String {
-  let result = parse(source)
+///| When strict=true, uses full CommonMark compliance (slower)
+pub fn md_parse_and_render(source : String, strict~ : Bool = false) -> String {
+  let result = parse(source, strict~)
   serialize(result.document)
 }

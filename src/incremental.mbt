@@ -263,6 +263,14 @@ fn shift_block_span(block : Block, delta : Int) -> Block {
         count~,
         span=Span::new(span.from + delta, span.to + delta),
       )
+    Block::FootnoteDefinition(label~, children~, span~, leading_trivia~, trailing_trivia~) =>
+      Block::FootnoteDefinition(
+        label~,
+        children~,
+        span=Span::new(span.from + delta, span.to + delta),
+        leading_trivia~,
+        trailing_trivia~,
+      )
   }
 }
 
@@ -280,6 +288,7 @@ fn Block::get_span(self : Block) -> Span {
     Block::Table(span~, ..) => span
     Block::HtmlBlock(span~, ..) => span
     Block::BlankLines(span~, ..) => span
+    Block::FootnoteDefinition(span~, ..) => span
   }
 }
 

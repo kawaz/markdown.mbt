@@ -195,6 +195,15 @@ pub(all) enum Block {
     count~ : Int,
     span~ : Span
   )
+
+  ///| Footnote definition [^label]: content (GFM)
+  FootnoteDefinition(
+    label~ : String,
+    children~ : Array[Block],
+    span~ : Span,
+    leading_trivia~ : Trivia,
+    trailing_trivia~ : Trivia
+  )
 }
 
 ///| List item
@@ -308,6 +317,12 @@ pub(all) enum Inline {
   ///| Raw inline HTML
   HtmlInline(
     html~ : String,
+    span~ : Span
+  )
+
+  ///| Footnote reference [^label] (GFM)
+  FootnoteReference(
+    label~ : String,
     span~ : Span
   )
 }

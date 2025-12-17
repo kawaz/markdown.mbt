@@ -251,6 +251,27 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
         buf.write_char('\n')
       }
     }
+
+    Block::FootnoteDefinition(label~, children~, leading_trivia~, trailing_trivia~, ..) => {
+      buf.write_string(leading_trivia.content)
+      buf.write_string("[^")
+      buf.write_string(label)
+      buf.write_string("]: ")
+      // Serialize children (usually a paragraph)
+      let mut first = true
+      for child in children {
+        if not(first) {
+          buf.write_string("\n    ")  // Indent continuation
+        }
+        let child_buf = StringBuilder::new()
+        serialize_block(child, child_buf)
+        let child_str = child_buf.to_string().trim_end(chars="\n").to_string()
+        buf.write_string(child_str)
+        first = false
+      }
+      buf.write_char('\n')
+      buf.write_string(trailing_trivia.content)
+    }
   }
 }
 
@@ -388,6 +409,12 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
     }
 
     Inline::HtmlInline(html~, ..) => buf.write_string(html)
+
+    Inline::FootnoteReference(label~, ..) => {
+      buf.write_string("[^")
+      buf.write_string(label)
+      buf.write_char(']')
+    }
   }
 }
 

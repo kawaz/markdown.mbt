@@ -8,9 +8,11 @@ pub(all) struct ParseResult {
 }
 
 ///| Parse markdown source into CST
-pub fn parse(source : String) -> ParseResult {
+///| When strict=true, uses full CommonMark compliance (slower)
+///| When strict=false (default), uses fast single-pass parser
+pub fn parse(source : String, strict~ : Bool = false) -> ParseResult {
   let scanner = Scanner::new(source)
-  let parser = BlockParser::new(scanner)
+  let parser = BlockParser::new(scanner, strict)
   parser.parse_document()
 }
 
@@ -18,10 +20,11 @@ pub fn parse(source : String) -> ParseResult {
 priv struct BlockParser {
   scanner : Scanner
   definitions : Array[LinkDefinition]
+  strict : Bool
 }
 
-fn BlockParser::new(scanner : Scanner) -> BlockParser {
-  { scanner, definitions: [] }
+fn BlockParser::new(scanner : Scanner, strict : Bool) -> BlockParser {
+  { scanner, definitions: [], strict }
 }
 
 ///| Parse entire document
@@ -136,6 +139,12 @@ fn BlockParser::parse_block(self : BlockParser) -> Block? {
     None => self.scanner.restore(start)
   }
 
+  // GFM Footnote definition
+  match self.try_parse_footnote_definition(start) {
+    Some(block) => return Some(block)
+    None => self.scanner.restore(start)
+  }
+
   // Link reference definition
   match self.try_parse_link_definition(start) {
     Some(_) => return None  // Definitions don't produce blocks
@@ -218,7 +227,7 @@ fn BlockParser::try_parse_atx_heading(self : BlockParser, start : Int) -> Block?
   let trailing = Trivia::empty()
 
   // Parse inline content
-  let children = parse_inlines(content)
+  let children = parse_inlines(content, strict=self.strict)
 
   Some(Block::Heading(
     level~,
@@ -436,11 +445,9 @@ fn BlockParser::try_parse_blockquote(self : BlockParser, start : Int) -> Block? 
       if char_is(self.scanner.peek(), '\n') {
         self.scanner.advance(1)
       }
-    } else if self.scanner.is_blank_line() {
-      // Blank line ends blockquote
-      break
     } else {
-      // Lazy continuation - line without > in blockquote
+      // Line without > ends blockquote
+      // TODO: Implement proper lazy continuation for paragraph content only
       self.scanner.restore(line_start)
       break
     }
@@ -449,7 +456,7 @@ fn BlockParser::try_parse_blockquote(self : BlockParser, start : Int) -> Block? 
   // Parse blockquote content recursively
   let content = content_buf.to_string()
   let inner_scanner = Scanner::new(content)
-  let inner_parser = BlockParser::new(inner_scanner)
+  let inner_parser = BlockParser::new(inner_scanner, self.strict)
   let inner_result = inner_parser.parse_document()
 
   // Merge definitions
@@ -722,7 +729,7 @@ fn BlockParser::parse_list_item(
   let (checked, actual_content) = parse_task_checkbox(content)
 
   if not(actual_content.is_empty()) {
-    let inline_content = parse_inlines(actual_content)
+    let inline_content = parse_inlines(actual_content, strict=self.strict)
     children.push(Block::Paragraph(
       children=inline_content,
       span=Span::new(start, self.scanner.pos),
@@ -861,7 +868,7 @@ fn BlockParser::parse_nested_list_item(
   let (checked, actual_content) = parse_task_checkbox(content)
 
   if not(actual_content.is_empty()) {
-    let inline_content = parse_inlines(actual_content)
+    let inline_content = parse_inlines(actual_content, strict=self.strict)
     children.push(Block::Paragraph(
       children=inline_content,
       span=Span::new(start, self.scanner.pos),
@@ -957,13 +964,119 @@ fn BlockParser::try_parse_setext_heading(self : BlockParser, start : Int) -> Blo
   }
 
   let content_str = content.trim_space().to_string()
-  let children = parse_inlines(content_str)
+  let children = parse_inlines(content_str, strict=self.strict)
 
   Some(Block::Heading(
     level~,
     style=HeadingStyle::Setext,
     children~,
     closing_hashes=0,
+    span=Span::new(start, self.scanner.pos),
+    leading_trivia=leading,
+    trailing_trivia=Trivia::empty(),
+  ))
+}
+
+///| Try to parse GFM footnote definition [^label]: content
+fn BlockParser::try_parse_footnote_definition(self : BlockParser, start : Int) -> Block? {
+  let saved = self.scanner.pos
+  let leading = self.read_leading_trivia()
+
+  // [^label]:
+  if not(char_is(self.scanner.peek(), '[')) {
+    self.scanner.restore(saved)
+    return None
+  }
+  self.scanner.advance(1)
+
+  if not(char_is(self.scanner.peek(), '^')) {
+    self.scanner.restore(saved)
+    return None
+  }
+  self.scanner.advance(1)
+
+  // Read label (alphanumeric, -, _)
+  let label_buf = StringBuilder::new()
+  while not(self.scanner.is_eof()) {
+    match self.scanner.peek() {
+      Some(']') => break
+      Some(c) if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' => {
+        label_buf.write_char(c)
+        self.scanner.advance(1)
+      }
+      _ => {
+        self.scanner.restore(saved)
+        return None
+      }
+    }
+  }
+
+  let label = label_buf.to_string()
+  if label.is_empty() {
+    self.scanner.restore(saved)
+    return None
+  }
+
+  self.scanner.advance(1)  // ]
+
+  if not(char_is(self.scanner.peek(), ':')) {
+    self.scanner.restore(saved)
+    return None
+  }
+  self.scanner.advance(1)
+
+  // Skip optional space after :
+  if char_is(self.scanner.peek(), ' ') {
+    self.scanner.advance(1)
+  }
+
+  // Read content (first line + continuation lines with indentation)
+  let content_buf = StringBuilder::new()
+  let first_line = self.scanner.read_line()
+  content_buf.write_string(first_line)
+
+  if char_is(self.scanner.peek(), '\n') {
+    self.scanner.advance(1)
+  }
+
+  // Read continuation lines (indented with at least 2 spaces or tab)
+  while not(self.scanner.is_eof()) {
+    let line_start = self.scanner.pos
+    let indent = self.scanner.skip_spaces()
+
+    if self.scanner.is_blank_line() {
+      // Blank line may continue or end footnote
+      content_buf.write_char('\n')
+      if char_is(self.scanner.peek(), '\n') {
+        self.scanner.advance(1)
+      }
+      continue
+    }
+
+    if indent >= 2 {
+      // Continuation line
+      content_buf.write_char('\n')
+      let line = self.scanner.read_line()
+      content_buf.write_string(line)
+      if char_is(self.scanner.peek(), '\n') {
+        self.scanner.advance(1)
+      }
+    } else {
+      // Not a continuation, restore and stop
+      self.scanner.restore(line_start)
+      break
+    }
+  }
+
+  // Parse content as blocks
+  let content = content_buf.to_string()
+  let inner_scanner = Scanner::new(content)
+  let inner_parser = BlockParser::new(inner_scanner, self.strict)
+  let inner_result = inner_parser.parse_document()
+
+  Some(Block::FootnoteDefinition(
+    label~,
+    children=inner_result.document.children,
     span=Span::new(start, self.scanner.pos),
     leading_trivia=leading,
     trailing_trivia=Trivia::empty(),
@@ -1148,7 +1261,7 @@ fn BlockParser::parse_paragraph(self : BlockParser, start : Int) -> Block? {
     return None
   }
 
-  let children = parse_inlines(content)
+  let children = parse_inlines(content, strict=self.strict)
 
   Some(Block::Paragraph(
     children~,
@@ -1202,7 +1315,7 @@ fn BlockParser::try_parse_table(self : BlockParser, start : Int) -> Block? {
   }
 
   // Parse header cells
-  let header = parse_table_row(header_line, alignments.length())
+  let header = parse_table_row(header_line, alignments.length(), self.strict)
 
   // Parse data rows
   let rows : Array[Array[TableCell]] = []
@@ -1214,7 +1327,7 @@ fn BlockParser::try_parse_table(self : BlockParser, start : Int) -> Block? {
       self.scanner.restore(row_start)
       break
     }
-    rows.push(parse_table_row(row_line, alignments.length()))
+    rows.push(parse_table_row(row_line, alignments.length(), self.strict))
 
     if char_is(self.scanner.peek(), '\n') {
       self.scanner.advance(1)
@@ -1278,7 +1391,7 @@ fn parse_table_alignments(line : String) -> Array[TableAlign] {
 }
 
 ///| Parse a table row into cells
-fn parse_table_row(line : String, expected_cols : Int) -> Array[TableCell] {
+fn parse_table_row(line : String, expected_cols : Int, strict : Bool) -> Array[TableCell] {
   let cells : Array[TableCell] = []
   let raw_cells = split_table_cells(line)
 
@@ -1287,7 +1400,7 @@ fn parse_table_row(line : String, expected_cols : Int) -> Array[TableCell] {
       break
     }
     let content = cell.trim_space().to_string()
-    let children = parse_inlines(content)
+    let children = parse_inlines(content, strict~)
     cells.push({
       children,
       span: Span::new(0, content.length()),  // Simplified span
