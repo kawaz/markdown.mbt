@@ -914,7 +914,16 @@ fn BlockParser::parse_paragraph(self : BlockParser, start : Int) -> Block? {
     let _ = self.scanner.skip_spaces()
 
     match self.scanner.peek() {
-      Some('#') | Some('>') | Some('`') | Some('~') => {
+      Some('#') | Some('>') => {
+        self.scanner.restore(saved)
+        break
+      }
+      // Only break for fenced code if 3+ backticks/tildes
+      Some('`') if self.scanner.count_char('`') >= 3 => {
+        self.scanner.restore(saved)
+        break
+      }
+      Some('~') if self.scanner.count_char('~') >= 3 => {
         self.scanner.restore(saved)
         break
       }

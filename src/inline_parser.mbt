@@ -148,10 +148,11 @@ fn InlineParser::try_parse_code_span(self : InlineParser, start : Int) -> Inline
       self.scanner.advance(closing_count)
 
       // Trim single leading/trailing space if present and content has them
+      // But NOT if content is entirely spaces
       let trimmed = if content.length() >= 2 {
         let first = content.get_char(0)
         let last = content.get_char(content.length() - 1)
-        if first == Some(' ') && last == Some(' ') {
+        if first == Some(' ') && last == Some(' ') && not(is_all_spaces(content)) {
           content.unsafe_substring(start=1, end=content.length() - 1)
         } else {
           content
@@ -748,4 +749,14 @@ fn InlineParser::try_parse_hard_break(self : InlineParser, start : Int) -> Inlin
   // Not followed by newline, restore and return None
   self.scanner.restore(start)
   None
+}
+
+///| Check if a string is entirely space characters
+fn is_all_spaces(s : String) -> Bool {
+  for c in s {
+    if c != ' ' {
+      return false
+    }
+  }
+  true
 }

@@ -48,6 +48,34 @@ fn write_chars(buf : StringBuilder, c : Char, n : Int) -> Unit {
   }
 }
 
+///| Calculate minimum backticks for code span
+///| Returns the smallest count that doesn't match any backtick run in content
+fn calc_code_span_backticks(content : String) -> Int {
+  // Collect all run lengths
+  let runs : Array[Int] = []
+  let mut current_run = 0
+  for c in content {
+    if c == '`' {
+      current_run += 1
+    } else {
+      if current_run > 0 {
+        runs.push(current_run)
+        current_run = 0
+      }
+    }
+  }
+  if current_run > 0 {
+    runs.push(current_run)
+  }
+
+  // Find minimum N that is not in runs
+  let mut n = 1
+  while runs.contains(n) {
+    n += 1
+  }
+  n
+}
+
 ///| Calculate minimum fence length for code block
 fn calc_fence_length(code : String) -> Int {
   let mut fence_len = 3
@@ -281,10 +309,25 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       buf.write_string("~~")
     }
 
-    Inline::Code(content~, backtick_count~, ..) => {
-      write_chars(buf, '`', backtick_count)
+    Inline::Code(content~, ..) => {
+      // Calculate minimum backticks needed (must not match any run in content)
+      let backticks = calc_code_span_backticks(content)
+      write_chars(buf, '`', backticks)
+      // Add padding space if content starts/ends with backtick
+      // (Spaces at both ends need padding only if NOT all spaces, to prevent trimming)
+      let needs_padding = content.length() > 0 && {
+        let first = content.get_char(0)
+        let last = content.get_char(content.length() - 1)
+        first == Some('`') || last == Some('`')
+      }
+      if needs_padding {
+        buf.write_char(' ')
+      }
       buf.write_string(content)
-      write_chars(buf, '`', backtick_count)
+      if needs_padding {
+        buf.write_char(' ')
+      }
+      write_chars(buf, '`', backticks)
     }
 
     Inline::Link(children~, url~, title~, ..) => {
