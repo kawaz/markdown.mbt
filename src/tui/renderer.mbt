@@ -47,37 +47,68 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
     }
 
     @markdown.Block::FencedCode(info~, code~, ..) => {
-      // Code block with dim background effect
+      // Calculate max line width
+      let lines = code.split("\n").collect()
+      let mut max_width = 0
+      for i, line in lines {
+        if i < lines.length() - 1 || not(line.to_string().is_empty()) {
+          let w = line.to_string().iter().count()
+          if w > max_width {
+            max_width = w
+          }
+        }
+      }
+      // Minimum width for info string
+      let info_width = if info.is_empty() { 0 } else { info.iter().count() + 4 }
+      if info_width > max_width {
+        max_width = info_width
+      }
+      // At least 20 chars wide
+      if max_width < 20 {
+        max_width = 20
+      }
+
+      // Top border
       buf.write_string(dim)
       if not(info.is_empty()) {
         buf.write_string("┌─ ")
         buf.write_string(info)
         buf.write_string(" ")
-        buf.write_string("─".repeat(30 - info.length()))
+        let remaining = max_width - info.iter().count() - 2
+        buf.write_string("─".repeat(remaining))
         buf.write_string("┐")
-        buf.write_string(reset)
-        buf.write_string("\n")
       } else {
         buf.write_string("┌")
-        buf.write_string("─".repeat(38))
+        buf.write_string("─".repeat(max_width + 2))
         buf.write_string("┐")
-        buf.write_string(reset)
-        buf.write_string("\n")
       }
-      // Code content
-      buf.write_string(cyan)
-      let lines = code.split("\n").collect()
+      buf.write_string(reset)
+      buf.write_string("\n")
+
+      // Code content with right border
       for i, line in lines {
         if i < lines.length() - 1 || not(line.to_string().is_empty()) {
-          buf.write_string("│ ")
-          buf.write_string(line.to_string())
+          buf.write_string(dim)
+          buf.write_string("│")
+          buf.write_string(reset)
+          buf.write_string(cyan)
+          buf.write_string(" ")
+          let line_str = line.to_string()
+          buf.write_string(line_str)
+          let padding = max_width - line_str.iter().count()
+          buf.write_string(" ".repeat(padding))
+          buf.write_string(reset)
+          buf.write_string(dim)
+          buf.write_string(" │")
+          buf.write_string(reset)
           buf.write_string("\n")
         }
       }
-      buf.write_string(reset)
+
+      // Bottom border
       buf.write_string(dim)
       buf.write_string("└")
-      buf.write_string("─".repeat(38))
+      buf.write_string("─".repeat(max_width + 2))
       buf.write_string("┘")
       buf.write_string(reset)
       buf.write_string("\n\n")
