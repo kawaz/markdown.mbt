@@ -17,9 +17,11 @@ jobs:
           version: stable
       - name: Check
         run: moon check
-      - name: Test (JS)
-        run: moon test --target js
-      - name: Test (WASM-GC)
-        run: moon test --target wasm-gc
-      - name: Format check
-        run: moon fmt --check
+      - name: Generate CommonMark tests
+        run: node scripts/gen-tests.js
+      - name: Generate GFM tests
+        run:  node scripts/gen-gfm-tests.js
+      - name: Test all
+        run: moon test --target all
+      - name: Test Bench
+        run: moon bench src/bench.mbt

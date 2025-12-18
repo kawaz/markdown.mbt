@@ -308,7 +308,7 @@ test "tokenize: stress 100" (b : @bench.T) {
 // Pre-tokenize for CloserIndex benchmarks
 
 ///|
-let tokens_stress_50 : Array[InlineToken] = tokenize_inline(
+let _tokens_stress_50 : Array[InlineToken] = tokenize_inline(
   Scanner::new(inline_stress_50),
 )
 

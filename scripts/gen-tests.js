@@ -227,7 +227,6 @@ async function main() {
   // Generate moon.pkg.json
   const pkgJson = {
     import: ['mizchi/markdown'],
-    'test-import': ['mizchi/markdown'],
   };
   fs.writeFileSync(
     path.join(OUTPUT_DIR, 'moon.pkg.json'),

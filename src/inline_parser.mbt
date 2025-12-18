@@ -2,40 +2,6 @@
 
 ///| Parses emphasis, strong, code, links, images, etc.
 
-///| Check if text contains complex emphasis patterns that need delimiter stack algorithm
-
-///|
-/// Returns true for cases like: ***foo***, *foo**bar**baz*, mixed markers
-fn needs_delimiter_stack(text : String) -> Bool {
-  let mut consecutive = 0
-  let mut runs = 0
-  let mut prev_marker = false
-  let mut last_marker : Char = ' '
-  for c in text {
-    if c == '*' || c == '_' {
-      consecutive += 1
-      if not(prev_marker) || c != last_marker {
-        runs += 1
-      }
-      prev_marker = true
-      last_marker = c
-    } else {
-      // 3連続以上のマーカーは複雑なケース
-      if consecutive >= 3 {
-        return true
-      }
-      consecutive = 0
-      prev_marker = false
-    }
-  }
-  // 末尾チェック
-  if consecutive >= 3 {
-    return true
-  }
-  // 4つ以上のマーカーランがある場合は複雑
-  runs >= 4
-}
-
 ///|
 /// Check if inlines array contains a link (used for nested link detection)
 fn contains_link(inlines : Array[Inline]) -> Bool {

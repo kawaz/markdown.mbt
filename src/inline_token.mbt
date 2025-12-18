@@ -59,8 +59,6 @@ priv enum InlineToken {
   Strikethrough(Int, Bool, Bool)
   /// Newline with break type: position, is_hard_break, is_backslash_break
   Newline(Int, Bool, Bool) // position, is_hard_break (spaces), is_backslash_break
-  /// Already parsed inline
-  Parsed(Int, Inline, Int) // start, inline, next_pos
 }
 
 ///|
@@ -76,7 +74,6 @@ fn InlineToken::start(self : InlineToken) -> Int {
     AngleStart(s) => s
     Strikethrough(s, _, _) => s
     Newline(s, _, _) => s
-    Parsed(s, _, _) => s
   }
 }
 
@@ -291,12 +288,10 @@ fn tokenize_with_index(scanner : Scanner) -> (Array[InlineToken], CloserIndex) {
 ///|
 /// Closer key for index lookup
 priv enum CloserKey {
-  Backticks(Int) // count
   RightBrack
   RightParen
   Emphasis(Char) // * or _
-  Strikethrough
-} derive(Eq, Hash)
+}
 
 ///| CloserIndex for O(1) lookup of closing delimiters
 
@@ -381,11 +376,6 @@ fn CloserIndex::has_closer(
   after : Int,
 ) -> Bool {
   match key {
-    CloserKey::Backticks(count) =>
-      match self.backticks.get(count) {
-        Some(arr) => binary_search_greater(arr, after) < arr.length()
-        None => false
-      }
     CloserKey::RightBrack =>
       binary_search_greater(self.right_brack, after) < self.right_brack.length()
     CloserKey::RightParen =>
@@ -396,9 +386,6 @@ fn CloserIndex::has_closer(
     CloserKey::Emphasis(_) =>
       binary_search_greater(self.emphasis_underscore, after) <
       self.emphasis_underscore.length()
-    CloserKey::Strikethrough =>
-      binary_search_greater(self.strikethrough, after) <
-      self.strikethrough.length()
   }
 }
 
@@ -410,18 +397,6 @@ fn CloserIndex::find_closer(
   after : Int,
 ) -> Int? {
   match key {
-    CloserKey::Backticks(count) =>
-      match self.backticks.get(count) {
-        Some(arr) => {
-          let idx = binary_search_greater(arr, after)
-          if idx < arr.length() {
-            Some(arr[idx])
-          } else {
-            None
-          }
-        }
-        None => None
-      }
     CloserKey::RightBrack => {
       let idx = binary_search_greater(self.right_brack, after)
       if idx < self.right_brack.length() {
@@ -454,14 +429,6 @@ fn CloserIndex::find_closer(
         None
       }
     }
-    CloserKey::Strikethrough => {
-      let idx = binary_search_greater(self.strikethrough, after)
-      if idx < self.strikethrough.length() {
-        Some(self.strikethrough[idx])
-      } else {
-        None
-      }
-    }
   }
 }
 
@@ -471,25 +438,14 @@ priv struct MultiPassParser {
   text : String
   text_len : Int
   tokens : Array[InlineToken]
-  closer_idx : CloserIndex
 }
 
 ///|
 /// Create multi-pass parser from text
 fn MultiPassParser::new(text : String) -> MultiPassParser {
   let scanner = Scanner::new(text)
-  let (tokens, closer_idx) = tokenize_with_index(scanner)
-  { text, text_len: text.length(), tokens, closer_idx }
-}
-
-///|
-/// Get code unit at position (returns -1 if out of bounds)
-fn MultiPassParser::code_at(self : MultiPassParser, pos : Int) -> Int {
-  if pos >= 0 && pos < self.text_len {
-    self.text.code_unit_at(pos).to_int()
-  } else {
-    -1
-  }
+  let (tokens, _) = tokenize_with_index(scanner)
+  { text, text_len: text.length(), tokens }
 }
 
 ///|
@@ -1228,7 +1184,7 @@ fn MultiPassParser::parse_emphasis(
     let tok = self.tokens[i]
     guard tok.start() < text_end else { break }
     match tok {
-      EmphasisMarks(closer_start, c, closer_count, closer_can_open, may_close) =>
+      EmphasisMarks(_, c, closer_count, closer_can_open, may_close) =>
         if c == marker_char && may_close {
           // Check mod 3 rule
           if emphasis_mod3_match(
@@ -1250,9 +1206,7 @@ fn MultiPassParser::parse_emphasis(
   }
   guard best_closer_idx is Some(closer_idx) else { return None }
   let closer = self.tokens[closer_idx]
-  guard closer is EmphasisMarks(closer_start, _, closer_count, _, _) else {
-    return None
-  }
+  guard closer is EmphasisMarks(closer_start, _, _, _, _) else { return None }
 
   // Parse content between opener and closer
   let content_start = opener_start + best_used
