@@ -6,39 +6,67 @@ test "plugin: default options" {
   inspect(output.contains("Hello"), content="true")
 }
 
-test "plugin: custom code highlighter" {
-  // Custom highlighter that wraps code in custom markers
-  fn custom_highlighter(lang : String, code : String) -> String {
+test "plugin: parse_code_block_info simple lang" {
+  let info = parse_code_block_info("javascript")
+  inspect(info.lang, content="javascript")
+  inspect(info.filename, content="")
+  inspect(info.meta, content="")
+}
+
+test "plugin: parse_code_block_info with filename" {
+  let info = parse_code_block_info("js:app.js")
+  inspect(info.lang, content="js")
+  inspect(info.filename, content="app.js")
+  inspect(info.meta, content="")
+}
+
+test "plugin: parse_code_block_info with meta" {
+  let info = parse_code_block_info("ts:index.ts {highlight=[1,3]}")
+  inspect(info.lang, content="ts")
+  inspect(info.filename, content="index.ts")
+  inspect(info.meta, content="{highlight=[1,3]}")
+}
+
+test "plugin: parse_code_block_info empty" {
+  let info = parse_code_block_info("")
+  inspect(info.lang, content="")
+  inspect(info.filename, content="")
+  inspect(info.meta, content="")
+}
+
+test "plugin: custom code highlighter with CodeBlockInfo" {
+  fn custom_highlighter(info : CodeBlockInfo, code : String) -> String {
     let buf = StringBuilder::new()
-    buf.write_string("<<< ")
-    buf.write_string(lang)
-    buf.write_string(" >>>\n")
+    buf.write_string("LANG=")
+    buf.write_string(info.lang)
+    if not(info.filename.is_empty()) {
+      buf.write_string(" FILE=")
+      buf.write_string(info.filename)
+    }
+    buf.write_string("\n")
     buf.write_string(code)
-    buf.write_string("\n<<< END >>>")
     buf.to_string()
   }
 
   let options = TuiOptions::with_highlighter(custom_highlighter)
-  let output = md_to_tui_with_options("```js\ncode\n```\n", options)
-  inspect(output.contains("<<< js >>>"), content="true")
-  inspect(output.contains("<<< END >>>"), content="true")
+  let output = md_to_tui_with_options("```js:app.js\ncode\n```\n", options)
+  inspect(output.contains("LANG=js"), content="true")
+  inspect(output.contains("FILE=app.js"), content="true")
 }
 
-test "plugin: highlighter receives language" {
-  let mut received_lang = ""
-  fn lang_checker(lang : String, _code : String) -> String {
-    received_lang = lang
-    "output"
+test "plugin: simple highlighter" {
+  fn simple_highlighter(lang : String, code : String) -> String {
+    "<<" + lang + ">>\n" + code
   }
 
-  let options = TuiOptions::with_highlighter(lang_checker)
-  let _ = md_to_tui_with_options("```python\nprint('hi')\n```\n", options)
-  inspect(received_lang, content="python")
+  let options = TuiOptions::with_simple_highlighter(simple_highlighter)
+  let output = md_to_tui_with_options("```python\nprint('hi')\n```\n", options)
+  inspect(output.contains("<<python>>"), content="true")
 }
 
 test "plugin: highlighter receives code" {
   let mut received_code = ""
-  fn code_checker(_lang : String, code : String) -> String {
+  fn code_checker(_info : CodeBlockInfo, code : String) -> String {
     received_code = code
     "output"
   }
@@ -49,12 +77,11 @@ test "plugin: highlighter receives code" {
 }
 
 test "plugin: syntax highlight simulation" {
-  // Simulate syntax highlighting by colorizing keywords
-  fn syntax_highlighter(lang : String, code : String) -> String {
+  fn syntax_highlighter(info : CodeBlockInfo, code : String) -> String {
     let buf = StringBuilder::new()
     buf.write_string(bold)
     buf.write_string("[")
-    buf.write_string(lang)
+    buf.write_string(info.lang)
     buf.write_string("]\n")
     buf.write_string(reset)
 
@@ -75,7 +102,7 @@ test "plugin: syntax highlight simulation" {
 }
 
 test "plugin: non-code blocks unaffected" {
-  fn custom_highlighter(_lang : String, _code : String) -> String {
+  fn custom_highlighter(_info : CodeBlockInfo, _code : String) -> String {
     "HIGHLIGHTED"
   }
 
@@ -87,4 +114,35 @@ test "plugin: non-code blocks unaffected" {
   inspect(output.contains("Paragraph"), content="true")
   // Code block should use custom highlighter
   inspect(output.contains("HIGHLIGHTED"), content="true")
+}
+
+test "plugin: filename in info string" {
+  fn file_highlighter(info : CodeBlockInfo, code : String) -> String {
+    if not(info.filename.is_empty()) {
+      "// " + info.filename + "\n" + code
+    } else {
+      code
+    }
+  }
+
+  let options = TuiOptions::with_highlighter(file_highlighter)
+  let output = md_to_tui_with_options("```ts:utils.ts\nexport const x = 1;\n```\n", options)
+  inspect(output.contains("// utils.ts"), content="true")
+}
+
+test "plugin: meta in info string" {
+  fn meta_highlighter(info : CodeBlockInfo, code : String) -> String {
+    let buf = StringBuilder::new()
+    if not(info.meta.is_empty()) {
+      buf.write_string("META: ")
+      buf.write_string(info.meta)
+      buf.write_string("\n")
+    }
+    buf.write_string(code)
+    buf.to_string()
+  }
+
+  let options = TuiOptions::with_highlighter(meta_highlighter)
+  let output = md_to_tui_with_options("```js {lines=[1,2]}\ncode\n```\n", options)
+  inspect(output.contains("META: {lines=[1,2]}"), content="true")
 }
