@@ -17,6 +17,17 @@ jobs:
           version: stable
       - name: Check
         run: moon check
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Install dependencies
+        run: pnpm install
+
       - name: Generate CommonMark tests
         run: node scripts/gen-tests.js
       - name: Generate GFM tests
@@ -24,4 +35,4 @@ jobs:
       - name: Test all
         run: moon test --target all
       - name: Test Bench
-        run: moon bench src/bench.mbt
+        run: moon bench
