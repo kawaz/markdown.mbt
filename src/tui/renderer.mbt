@@ -1,7 +1,9 @@
 ///| TUI Renderer
+
 ///| Renders markdown AST to terminal with ANSI escape codes
 
-///| Render a document to terminal string
+///|
+/// Render a document to terminal string
 pub fn render_tui(doc : @markdown.Document) -> String {
   let buf = StringBuilder::new()
   for block in doc.children {
@@ -10,14 +12,14 @@ pub fn render_tui(doc : @markdown.Document) -> String {
   buf.to_string()
 }
 
-///| Render a block element to terminal
+///|
+/// Render a block element to terminal
 fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
   match block {
     @markdown.Block::Paragraph(children~, ..) => {
       render_inlines_tui(children, buf)
       buf.write_string("\n\n")
     }
-
     @markdown.Block::Heading(level~, children~, ..) => {
       // Headings: bold + color based on level
       let color = match level {
@@ -38,14 +40,12 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       buf.write_string(reset)
       buf.write_string("\n\n")
     }
-
     @markdown.Block::ThematicBreak(..) => {
       buf.write_string(dim)
       buf.write_string("─".repeat(40))
       buf.write_string(reset)
       buf.write_string("\n\n")
     }
-
     @markdown.Block::FencedCode(info~, code~, ..) => {
       // Calculate max line width
       let lines = code.split("\n").collect()
@@ -113,7 +113,6 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       buf.write_string(reset)
       buf.write_string("\n\n")
     }
-
     @markdown.Block::IndentedCode(code~, ..) => {
       buf.write_string(cyan)
       let lines = code.split("\n").collect()
@@ -127,7 +126,6 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       buf.write_string(reset)
       buf.write_string("\n")
     }
-
     @markdown.Block::Blockquote(children~, ..) => {
       buf.write_string(dim)
       buf.write_string("│ ")
@@ -139,14 +137,12 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       buf.write_string(reset)
       buf.write_string("\n")
     }
-
     @markdown.Block::BulletList(items~, ..) => {
       for item in items {
         render_list_item_tui(item, buf, "•")
       }
       buf.write_string("\n")
     }
-
     @markdown.Block::OrderedList(items~, start~, ..) => {
       for i, item in items {
         let num = (start + i).to_string() + "."
@@ -154,7 +150,6 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       }
       buf.write_string("\n")
     }
-
     @markdown.Block::HtmlBlock(html~, ..) => {
       buf.write_string(dim)
       buf.write_string(html)
@@ -163,7 +158,6 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
         buf.write_string("\n")
       }
     }
-
     @markdown.Block::Table(header~, rows~, ..) => {
       // Calculate column widths
       let col_count = header.length()
@@ -240,9 +234,7 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       }
       buf.write_string("\n")
     }
-
     @markdown.Block::BlankLines(..) => ()
-
     @markdown.Block::FootnoteDefinition(label~, children~, ..) => {
       buf.write_string(dim)
       buf.write_string("[^")
@@ -257,7 +249,8 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
   }
 }
 
-///| Measure the display width of inline elements (excluding ANSI codes)
+///|
+/// Measure the display width of inline elements (excluding ANSI codes)
 fn measure_inlines_width(inlines : Array[@markdown.Inline]) -> Int {
   let mut width = 0
   for inline in inlines {
@@ -266,14 +259,16 @@ fn measure_inlines_width(inlines : Array[@markdown.Inline]) -> Int {
   width
 }
 
-///| Measure display width of a single inline element
+///|
+/// Measure display width of a single inline element
 fn measure_inline_width(inline : @markdown.Inline) -> Int {
   match inline {
     @markdown.Inline::Text(content~, ..) => content.iter().count()
     @markdown.Inline::Code(content~, ..) => content.iter().count() + 2 // backticks
     @markdown.Inline::Emphasis(children~, ..) => measure_inlines_width(children)
     @markdown.Inline::Strong(children~, ..) => measure_inlines_width(children)
-    @markdown.Inline::Strikethrough(children~, ..) => measure_inlines_width(children)
+    @markdown.Inline::Strikethrough(children~, ..) =>
+      measure_inlines_width(children)
     @markdown.Inline::Link(children~, ..) => measure_inlines_width(children)
     @markdown.Inline::RefLink(children~, ..) => measure_inlines_width(children)
     @markdown.Inline::Autolink(url~, ..) => url.iter().count()
@@ -286,18 +281,26 @@ fn measure_inline_width(inline : @markdown.Inline) -> Int {
   }
 }
 
-///| Render block inline (for blockquote content)
-fn render_block_tui_inline(block : @markdown.Block, buf : StringBuilder) -> Unit {
+///|
+/// Render block inline (for blockquote content)
+fn render_block_tui_inline(
+  block : @markdown.Block,
+  buf : StringBuilder,
+) -> Unit {
   match block {
-    @markdown.Block::Paragraph(children~, ..) => {
+    @markdown.Block::Paragraph(children~, ..) =>
       render_inlines_tui_raw(children, buf)
-    }
     _ => render_block_tui(block, buf)
   }
 }
 
-///| Render a list item
-fn render_list_item_tui(item : @markdown.ListItem, buf : StringBuilder, marker : String) -> Unit {
+///|
+/// Render a list item
+fn render_list_item_tui(
+  item : @markdown.ListItem,
+  buf : StringBuilder,
+  marker : String,
+) -> Unit {
   // Task list checkbox
   match item.checked {
     Some(true) => {
@@ -318,37 +321,43 @@ fn render_list_item_tui(item : @markdown.ListItem, buf : StringBuilder, marker :
       buf.write_string(reset)
     }
   }
-
   for child in item.children {
     match child {
-      @markdown.Block::Paragraph(children~, ..) => render_inlines_tui(children, buf)
+      @markdown.Block::Paragraph(children~, ..) =>
+        render_inlines_tui(children, buf)
       _ => render_block_tui(child, buf)
     }
   }
   buf.write_string("\n")
 }
 
-///| Render inline elements
-fn render_inlines_tui(inlines : Array[@markdown.Inline], buf : StringBuilder) -> Unit {
+///|
+/// Render inline elements
+fn render_inlines_tui(
+  inlines : Array[@markdown.Inline],
+  buf : StringBuilder,
+) -> Unit {
   for inline in inlines {
     render_inline_tui(inline, buf)
   }
 }
 
-///| Render inline elements without trailing reset
-fn render_inlines_tui_raw(inlines : Array[@markdown.Inline], buf : StringBuilder) -> Unit {
+///|
+/// Render inline elements without trailing reset
+fn render_inlines_tui_raw(
+  inlines : Array[@markdown.Inline],
+  buf : StringBuilder,
+) -> Unit {
   for inline in inlines {
     render_inline_tui(inline, buf)
   }
 }
 
-///| Render a single inline element
+///|
+/// Render a single inline element
 fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
   match inline {
-    @markdown.Inline::Text(content~, ..) => {
-      buf.write_string(content)
-    }
-
+    @markdown.Inline::Text(content~, ..) => buf.write_string(content)
     @markdown.Inline::Code(content~, ..) => {
       buf.write_string(bg_black)
       buf.write_string(cyan)
@@ -357,26 +366,22 @@ fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
       buf.write_string("`")
       buf.write_string(reset)
     }
-
     @markdown.Inline::Emphasis(children~, ..) => {
       buf.write_string(italic)
       render_inlines_tui_raw(children, buf)
       buf.write_string(reset)
     }
-
     @markdown.Inline::Strong(children~, ..) => {
       buf.write_string(bold)
       render_inlines_tui_raw(children, buf)
       buf.write_string(reset)
     }
-
     @markdown.Inline::Strikethrough(children~, ..) => {
       buf.write_string(strikethrough)
       buf.write_string(dim)
       render_inlines_tui_raw(children, buf)
       buf.write_string(reset)
     }
-
     @markdown.Inline::Link(children~, url~, ..) => {
       buf.write_string(underline)
       buf.write_string(blue)
@@ -388,7 +393,6 @@ fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
       buf.write_string(")")
       buf.write_string(reset)
     }
-
     @markdown.Inline::RefLink(children~, label~, ..) => {
       buf.write_string(underline)
       buf.write_string(blue)
@@ -400,14 +404,12 @@ fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
       buf.write_string("]")
       buf.write_string(reset)
     }
-
     @markdown.Inline::Autolink(url~, ..) => {
       buf.write_string(underline)
       buf.write_string(blue)
       buf.write_string(url)
       buf.write_string(reset)
     }
-
     @markdown.Inline::Image(alt~, url~, ..) => {
       buf.write_string(magenta)
       buf.write_string("🖼 ")
@@ -419,7 +421,6 @@ fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
       buf.write_string(")")
       buf.write_string(reset)
     }
-
     @markdown.Inline::RefImage(alt~, label~, ..) => {
       buf.write_string(magenta)
       buf.write_string("🖼 ")
@@ -431,21 +432,13 @@ fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
       buf.write_string("]")
       buf.write_string(reset)
     }
-
     @markdown.Inline::HtmlInline(html~, ..) => {
       buf.write_string(dim)
       buf.write_string(html)
       buf.write_string(reset)
     }
-
-    @markdown.Inline::SoftBreak(..) => {
-      buf.write_string("\n")
-    }
-
-    @markdown.Inline::HardBreak(..) => {
-      buf.write_string("\n")
-    }
-
+    @markdown.Inline::SoftBreak(..) => buf.write_string("\n")
+    @markdown.Inline::HardBreak(..) => buf.write_string("\n")
     @markdown.Inline::FootnoteReference(label~, ..) => {
       buf.write_string(bright_cyan)
       buf.write_string("[^")
@@ -456,7 +449,8 @@ fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
   }
 }
 
-///| Parse markdown and render to terminal
+///|
+/// Parse markdown and render to terminal
 pub fn md_to_tui(source : String) -> String {
   let result = @markdown.parse(source)
   render_tui(result.document)

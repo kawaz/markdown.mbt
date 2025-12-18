@@ -1,44 +1,56 @@
 ///| Incremental parsing support
+
 ///| Allows partial re-parsing when document changes are localized
 
 ///| Describes a text edit operation
-///| Using #valtype to avoid heap allocation for this small struct
+
+///|
+/// Using #valtype to avoid heap allocation for this small struct
 #valtype
 pub(all) struct EditInfo {
-  offset : Int      // Where the edit starts in old source
-  old_len : Int     // How many chars were deleted
-  new_len : Int     // How many chars were inserted
+  offset : Int // Where the edit starts in old source
+  old_len : Int // How many chars were deleted
+  new_len : Int // How many chars were inserted
 }
 
-///| Create an edit info for insertion
+///|
+/// Create an edit info for insertion
 pub fn EditInfo::insert(offset : Int, len : Int) -> EditInfo {
   { offset, old_len: 0, new_len: len }
 }
 
-///| Create an edit info for deletion
+///|
+/// Create an edit info for deletion
 pub fn EditInfo::delete(offset : Int, len : Int) -> EditInfo {
   { offset, old_len: len, new_len: 0 }
 }
 
-///| Create an edit info for replacement
-pub fn EditInfo::replace(offset : Int, old_len : Int, new_len : Int) -> EditInfo {
+///|
+/// Create an edit info for replacement
+pub fn EditInfo::replace(
+  offset : Int,
+  old_len : Int,
+  new_len : Int,
+) -> EditInfo {
   { offset, old_len, new_len }
 }
 
-///| Result of incremental parsing
+///|
+/// Result of incremental parsing
 pub(all) struct IncrementalResult {
   document : Document
-  reused_before : Int   // Number of blocks reused from before edit
-  reparsed : Int        // Number of blocks that were re-parsed
-  reused_after : Int    // Number of blocks reused from after edit
+  reused_before : Int // Number of blocks reused from before edit
+  reparsed : Int // Number of blocks that were re-parsed
+  reused_after : Int // Number of blocks reused from after edit
 }
 
-///| Parse incrementally using edit hint
+///|
+/// Parse incrementally using edit hint
 pub fn parse_incremental(
   old_doc : Document,
   old_source : String,
   new_source : String,
-  edit : EditInfo
+  edit : EditInfo,
 ) -> IncrementalResult {
   let old_blocks = old_doc.children
 
@@ -54,7 +66,6 @@ pub fn parse_incremental(
       None => 0
     }
   }
-
   let reparse_end_old = if after_idx < old_blocks.length() {
     old_blocks[after_idx].get_span().from
   } else {
@@ -68,7 +79,7 @@ pub fn parse_incremental(
   // Extract the region to re-parse from new source
   let reparse_region = new_source.unsafe_substring(
     start=reparse_start,
-    end=clamp_int(reparse_end_new, reparse_start, new_source.length())
+    end=clamp_int(reparse_end_new, reparse_start, new_source.length()),
   )
 
   // Re-parse just this region
@@ -98,13 +109,11 @@ pub fn parse_incremental(
   for i = after_idx; i < old_blocks.length(); i = i + 1 {
     final_blocks.push(shift_block_span(old_blocks[i], delta))
   }
-
   let new_doc = Document::{
     frontmatter: old_doc.frontmatter,
     children: final_blocks,
     span: Span::new(0, new_source.length()),
   }
-
   {
     document: new_doc,
     reused_before,
@@ -114,14 +123,14 @@ pub fn parse_incremental(
 }
 
 ///| Find the range of blocks affected by the edit
-///| Returns (first_affected_idx, first_unaffected_after_idx)
+
+///|
+/// Returns (first_affected_idx, first_unaffected_after_idx)
 fn find_affected_range(blocks : Array[Block], edit : EditInfo) -> (Int, Int) {
   let edit_start = edit.offset
   let edit_end = edit.offset + edit.old_len
-
   let mut first_affected = blocks.length()
   let mut first_unaffected = blocks.length()
-
   for i, block in blocks {
     let span = block.get_span()
 
@@ -157,11 +166,11 @@ fn find_affected_range(blocks : Array[Block], edit : EditInfo) -> (Int, Int) {
       }
     }
   }
-
   (first_affected, first_unaffected)
 }
 
-///| Adjust spans in blocks by adding an offset
+///|
+/// Adjust spans in blocks by adding an offset
 fn adjust_spans(blocks : Array[Block], offset : Int) -> Array[Block] {
   let result : Array[Block] = []
   for block in blocks {
@@ -170,10 +179,17 @@ fn adjust_spans(blocks : Array[Block], offset : Int) -> Array[Block] {
   result
 }
 
-///| Shift a block's span by delta
+///|
+/// Shift a block's span by delta
 fn shift_block_span(block : Block, delta : Int) -> Block {
   match block {
-    Block::ThematicBreak(marker~, count~, span~, leading_trivia~, trailing_trivia~) =>
+    Block::ThematicBreak(
+      marker~,
+      count~,
+      span~,
+      leading_trivia~,
+      trailing_trivia~
+    ) =>
       Block::ThematicBreak(
         marker~,
         count~,
@@ -181,7 +197,15 @@ fn shift_block_span(block : Block, delta : Int) -> Block {
         leading_trivia~,
         trailing_trivia~,
       )
-    Block::Heading(level~, style~, children~, closing_hashes~, span~, leading_trivia~, trailing_trivia~) =>
+    Block::Heading(
+      level~,
+      style~,
+      children~,
+      closing_hashes~,
+      span~,
+      leading_trivia~,
+      trailing_trivia~
+    ) =>
       Block::Heading(
         level~,
         style~,
@@ -198,7 +222,16 @@ fn shift_block_span(block : Block, delta : Int) -> Block {
         leading_trivia~,
         trailing_trivia~,
       )
-    Block::FencedCode(fence_marker~, fence_length~, info~, code~, indent~, span~, leading_trivia~, trailing_trivia~) =>
+    Block::FencedCode(
+      fence_marker~,
+      fence_length~,
+      info~,
+      code~,
+      indent~,
+      span~,
+      leading_trivia~,
+      trailing_trivia~
+    ) =>
       Block::FencedCode(
         fence_marker~,
         fence_length~,
@@ -223,26 +256,48 @@ fn shift_block_span(block : Block, delta : Int) -> Block {
         leading_trivia~,
         trailing_trivia~,
       )
-    Block::BulletList(marker~, tight~, items~, span~, leading_trivia~, trailing_trivia~) =>
+    Block::BulletList(
+      marker~,
+      tight~,
+      items~,
+      span~,
+      leading_trivia~,
+      trailing_trivia~
+    ) =>
       Block::BulletList(
         marker~,
         tight~,
-        items~,  // TODO: adjust item spans
+        items~, // TODO: adjust item spans
         span=Span::new(span.from + delta, span.to + delta),
         leading_trivia~,
         trailing_trivia~,
       )
-    Block::OrderedList(start~, delimiter~, tight~, items~, span~, leading_trivia~, trailing_trivia~) =>
+    Block::OrderedList(
+      start~,
+      delimiter~,
+      tight~,
+      items~,
+      span~,
+      leading_trivia~,
+      trailing_trivia~
+    ) =>
       Block::OrderedList(
         start~,
         delimiter~,
         tight~,
-        items~,  // TODO: adjust item spans
+        items~, // TODO: adjust item spans
         span=Span::new(span.from + delta, span.to + delta),
         leading_trivia~,
         trailing_trivia~,
       )
-    Block::Table(header~, alignments~, rows~, span~, leading_trivia~, trailing_trivia~) =>
+    Block::Table(
+      header~,
+      alignments~,
+      rows~,
+      span~,
+      leading_trivia~,
+      trailing_trivia~
+    ) =>
       Block::Table(
         header~,
         alignments~,
@@ -263,7 +318,13 @@ fn shift_block_span(block : Block, delta : Int) -> Block {
         count~,
         span=Span::new(span.from + delta, span.to + delta),
       )
-    Block::FootnoteDefinition(label~, children~, span~, leading_trivia~, trailing_trivia~) =>
+    Block::FootnoteDefinition(
+      label~,
+      children~,
+      span~,
+      leading_trivia~,
+      trailing_trivia~
+    ) =>
       Block::FootnoteDefinition(
         label~,
         children~,
@@ -274,7 +335,8 @@ fn shift_block_span(block : Block, delta : Int) -> Block {
   }
 }
 
-///| Helper to get span from a block
+///|
+/// Helper to get span from a block
 fn Block::get_span(self : Block) -> Span {
   match self {
     Block::ThematicBreak(span~, ..) => span
@@ -292,7 +354,8 @@ fn Block::get_span(self : Block) -> Span {
   }
 }
 
-///| Clamp a value between min and max (local helper)
+///|
+/// Clamp a value between min and max (local helper)
 fn clamp_int(value : Int, min : Int, max : Int) -> Int {
   if value < min {
     min

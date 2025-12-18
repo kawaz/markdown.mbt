@@ -1,12 +1,14 @@
 ///| AST to JSON serialization for JS interop
 
-///| Convert Document to JSON string
+///|
+/// Convert Document to JSON string
 pub fn document_to_json(doc : @markdown.Document) -> String {
   let json = document_to_json_value(doc)
   json.stringify()
 }
 
-///| Convert Document to JSON Value
+///|
+/// Convert Document to JSON Value
 fn document_to_json_value(doc : @markdown.Document) -> Json {
   let children : Array[Json] = []
   for block in doc.children {
@@ -19,12 +21,14 @@ fn document_to_json_value(doc : @markdown.Document) -> Json {
   }
 }
 
-///| Convert Span to JSON
+///|
+/// Convert Span to JSON
 fn span_to_json(span : @markdown.Span) -> Json {
   { "from": span.from.to_json(), "to": span.to.to_json() }
 }
 
-///| Convert Block to JSON
+///|
+/// Convert Block to JSON
 fn block_to_json(block : @markdown.Block) -> Json {
   match block {
     @markdown.Block::Paragraph(children~, span~, ..) => {
@@ -50,22 +54,20 @@ fn block_to_json(block : @markdown.Block) -> Json {
         "span": span_to_json(span),
       }
     }
-    @markdown.Block::FencedCode(info~, code~, span~, ..) => {
+    @markdown.Block::FencedCode(info~, code~, span~, ..) =>
       {
         "type": "code_block",
         "info": info.to_json(),
         "code": code.to_json(),
         "span": span_to_json(span),
       }
-    }
-    @markdown.Block::IndentedCode(code~, span~, ..) => {
+    @markdown.Block::IndentedCode(code~, span~, ..) =>
       {
         "type": "code_block",
         "info": Json::null(),
         "code": code.to_json(),
         "span": span_to_json(span),
       }
-    }
     @markdown.Block::Blockquote(children~, span~, ..) => {
       let blocks : Array[Json] = []
       for child in children {
@@ -102,16 +104,14 @@ fn block_to_json(block : @markdown.Block) -> Json {
         "span": span_to_json(span),
       }
     }
-    @markdown.Block::ThematicBreak(span~, ..) => {
+    @markdown.Block::ThematicBreak(span~, ..) =>
       { "type": "thematic_break", "span": span_to_json(span) }
-    }
-    @markdown.Block::HtmlBlock(html~, span~, ..) => {
+    @markdown.Block::HtmlBlock(html~, span~, ..) =>
       {
         "type": "html_block",
         "html": html.to_json(),
         "span": span_to_json(span),
       }
-    }
     @markdown.Block::Table(header~, alignments~, rows~, span~, ..) => {
       let header_cells : Array[Json] = []
       for cell in header {
@@ -137,13 +137,12 @@ fn block_to_json(block : @markdown.Block) -> Json {
         "span": span_to_json(span),
       }
     }
-    @markdown.Block::BlankLines(count~, span~) => {
+    @markdown.Block::BlankLines(count~, span~) =>
       {
         "type": "blank_lines",
         "count": count.to_json(),
         "span": span_to_json(span),
       }
-    }
     @markdown.Block::FootnoteDefinition(label~, children~, span~, ..) => {
       let blocks : Array[Json] = []
       for child in children {
@@ -159,7 +158,8 @@ fn block_to_json(block : @markdown.Block) -> Json {
   }
 }
 
-///| Convert ListItem to JSON
+///|
+/// Convert ListItem to JSON
 fn list_item_to_json(item : @markdown.ListItem) -> Json {
   let blocks : Array[Json] = []
   for child in item.children {
@@ -177,7 +177,8 @@ fn list_item_to_json(item : @markdown.ListItem) -> Json {
   }
 }
 
-///| Convert TableCell to JSON
+///|
+/// Convert TableCell to JSON
 fn table_cell_to_json(cell : @markdown.TableCell) -> Json {
   let inlines : Array[Json] = []
   for inline in cell.children {
@@ -190,7 +191,8 @@ fn table_cell_to_json(cell : @markdown.TableCell) -> Json {
   }
 }
 
-///| Convert TableAlign to JSON
+///|
+/// Convert TableAlign to JSON
 fn table_align_to_json(align : @markdown.TableAlign) -> Json {
   match align {
     @markdown.TableAlign::Left => "left".to_json()
@@ -200,22 +202,20 @@ fn table_align_to_json(align : @markdown.TableAlign) -> Json {
   }
 }
 
-///| Convert Inline to JSON
+///|
+/// Convert Inline to JSON
 fn inline_to_json(inline : @markdown.Inline) -> Json {
   match inline {
-    @markdown.Inline::Text(content~, span~) => {
+    @markdown.Inline::Text(content~, span~) =>
       {
         "type": "text",
         "content": content.to_json(),
         "span": span_to_json(span),
       }
-    }
-    @markdown.Inline::SoftBreak(span~) => {
+    @markdown.Inline::SoftBreak(span~) =>
       { "type": "soft_break", "span": span_to_json(span) }
-    }
-    @markdown.Inline::HardBreak(span~, ..) => {
+    @markdown.Inline::HardBreak(span~, ..) =>
       { "type": "hard_break", "span": span_to_json(span) }
-    }
     @markdown.Inline::Emphasis(children~, span~, ..) => {
       let inlines : Array[Json] = []
       for child in children {
@@ -249,13 +249,12 @@ fn inline_to_json(inline : @markdown.Inline) -> Json {
         "span": span_to_json(span),
       }
     }
-    @markdown.Inline::Code(content~, span~, ..) => {
+    @markdown.Inline::Code(content~, span~, ..) =>
       {
         "type": "code",
         "content": content.to_json(),
         "span": span_to_json(span),
       }
-    }
     @markdown.Inline::Link(children~, url~, title~, span~) => {
       let inlines : Array[Json] = []
       for child in children {
@@ -281,15 +280,14 @@ fn inline_to_json(inline : @markdown.Inline) -> Json {
         "span": span_to_json(span),
       }
     }
-    @markdown.Inline::Autolink(url~, is_email~, span~) => {
+    @markdown.Inline::Autolink(url~, is_email~, span~) =>
       {
         "type": "autolink",
         "url": url.to_json(),
         "is_email": is_email.to_json(),
         "span": span_to_json(span),
       }
-    }
-    @markdown.Inline::Image(alt~, url~, title~, span~) => {
+    @markdown.Inline::Image(alt~, url~, title~, span~) =>
       {
         "type": "image",
         "alt": alt.to_json(),
@@ -297,28 +295,24 @@ fn inline_to_json(inline : @markdown.Inline) -> Json {
         "title": title.to_json(),
         "span": span_to_json(span),
       }
-    }
-    @markdown.Inline::RefImage(alt~, label~, span~) => {
+    @markdown.Inline::RefImage(alt~, label~, span~) =>
       {
         "type": "ref_image",
         "alt": alt.to_json(),
         "label": label.to_json(),
         "span": span_to_json(span),
       }
-    }
-    @markdown.Inline::HtmlInline(html~, span~) => {
+    @markdown.Inline::HtmlInline(html~, span~) =>
       {
         "type": "html_inline",
         "html": html.to_json(),
         "span": span_to_json(span),
       }
-    }
-    @markdown.Inline::FootnoteReference(label~, span~) => {
+    @markdown.Inline::FootnoteReference(label~, span~) =>
       {
         "type": "footnote_reference",
         "label": label.to_json(),
         "span": span_to_json(span),
       }
-    }
   }
 }

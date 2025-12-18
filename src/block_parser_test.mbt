@@ -1,5 +1,5 @@
-///| Block parser tests
-
+///|
+/// Block parser tests
 test "parse heading" {
   let result = parse("# Hello World\n")
   let blocks = result.document.children
@@ -18,6 +18,7 @@ test "parse heading" {
   }
 }
 
+///|
 test "parse heading level 2-6" {
   for level = 2; level <= 6; level = level + 1 {
     let prefix = String::make(level, '#')
@@ -29,6 +30,7 @@ test "parse heading level 2-6" {
   }
 }
 
+///|
 test "parse heading with closing hashes" {
   let result = parse("## Title ##\n")
   match result.document.children[0] {
@@ -40,19 +42,20 @@ test "parse heading with closing hashes" {
   }
 }
 
+///|
 test "parse paragraph" {
   let result = parse("Hello world.\n")
   match result.document.children[0] {
-    Block::Paragraph(children~, ..) => {
+    Block::Paragraph(children~, ..) =>
       match children[0] {
         Inline::Text(content~, ..) => inspect(content, content="Hello world.")
         _ => fail("Expected text")
       }
-    }
     _ => fail("Expected paragraph")
   }
 }
 
+///|
 test "parse multiline paragraph" {
   let result = parse("Line 1\nLine 2\n")
   match result.document.children[0] {
@@ -68,6 +71,7 @@ test "parse multiline paragraph" {
   }
 }
 
+///|
 test "parse fenced code block" {
   let result = parse("```js\nconsole.log('hello');\n```\n")
   match result.document.children[0] {
@@ -81,6 +85,7 @@ test "parse fenced code block" {
   }
 }
 
+///|
 test "parse fenced code with tilde" {
   let result = parse("~~~python\nprint('hello')\n~~~\n")
   match result.document.children[0] {
@@ -92,16 +97,16 @@ test "parse fenced code with tilde" {
   }
 }
 
+///|
 test "parse fenced code with filename" {
   let result = parse("```json:package.json\n{\"name\": \"test\"}\n```\n")
   match result.document.children[0] {
-    Block::FencedCode(info~, ..) => {
-      inspect(info, content="json:package.json")
-    }
+    Block::FencedCode(info~, ..) => inspect(info, content="json:package.json")
     _ => fail("Expected fenced code")
   }
 }
 
+///|
 test "parse thematic break" {
   // Thematic break after content to avoid frontmatter confusion
   let result = parse("text\n\n---\n")
@@ -121,28 +126,27 @@ test "parse thematic break" {
   inspect(found, content="true")
 }
 
+///|
 test "parse thematic break with asterisk" {
   let result = parse("***\n")
   match result.document.children[0] {
-    Block::ThematicBreak(marker~, ..) => {
-      inspect(marker == '*', content="true")
-    }
+    Block::ThematicBreak(marker~, ..) => inspect(marker == '*', content="true")
     _ => fail("Expected thematic break")
   }
 }
 
+///|
 test "parse blockquote" {
   let result = parse("> Quote\n")
   match result.document.children[0] {
     Block::Blockquote(children~, ..) => {
       inspect(children.length(), content="1")
       match children[0] {
-        Block::Paragraph(children=p_children, ..) => {
+        Block::Paragraph(children=p_children, ..) =>
           match p_children[0] {
             Inline::Text(content~, ..) => inspect(content, content="Quote")
             _ => fail("Expected text")
           }
-        }
         _ => fail("Expected paragraph in blockquote")
       }
     }
@@ -150,6 +154,7 @@ test "parse blockquote" {
   }
 }
 
+///|
 test "parse bullet list" {
   let result = parse("- Item 1\n- Item 2\n")
   match result.document.children[0] {
@@ -162,6 +167,7 @@ test "parse bullet list" {
   }
 }
 
+///|
 test "parse ordered list" {
   let result = parse("1. First\n2. Second\n")
   match result.document.children[0] {
@@ -174,16 +180,17 @@ test "parse ordered list" {
   }
 }
 
+///|
 test "parse indented code" {
   let result = parse("    code line\n    more code\n")
   match result.document.children[0] {
-    Block::IndentedCode(code~, ..) => {
+    Block::IndentedCode(code~, ..) =>
       inspect(code, content="code line\nmore code")
-    }
     _ => fail("Expected indented code")
   }
 }
 
+///|
 test "parse setext heading h1" {
   let result = parse("Title\n=====\n")
   match result.document.children[0] {
@@ -195,6 +202,7 @@ test "parse setext heading h1" {
   }
 }
 
+///|
 test "parse setext heading h2" {
   let result = parse("Title\n-----\n")
   match result.document.children[0] {
@@ -206,6 +214,7 @@ test "parse setext heading h2" {
   }
 }
 
+///|
 test "parse frontmatter" {
   let result = parse("---\ntitle: Hello\nauthor: World\n---\n# Content\n")
   match result.document.frontmatter {
@@ -219,6 +228,7 @@ test "parse frontmatter" {
   }
 }
 
+///|
 test "parse link definition" {
   let result = parse("[link]: https://example.com \"Title\"\n")
   inspect(result.definitions.length(), content="1")
@@ -228,6 +238,7 @@ test "parse link definition" {
   inspect(def.title, content="Title")
 }
 
+///|
 test "parse mixed content" {
   let result = parse("# Title\n\nParagraph text.\n\n```js\ncode\n```\n")
   let children = result.document.children
@@ -248,6 +259,7 @@ test "parse mixed content" {
   inspect(code_count, content="1")
 }
 
+///|
 test "parse simple table" {
   let source = "| A | B |\n|---|---|\n| 1 | 2 |\n"
   let result = parse(source)
@@ -261,6 +273,7 @@ test "parse simple table" {
   }
 }
 
+///|
 test "parse table with alignment" {
   let source = "| Left | Center | Right |\n|:---|:---:|---:|\n| a | b | c |\n"
   let result = parse(source)
@@ -274,6 +287,7 @@ test "parse table with alignment" {
   }
 }
 
+///|
 test "parse table with multiple rows" {
   let source = "| H1 | H2 |\n|---|---|\n| R1C1 | R1C2 |\n| R2C1 | R2C2 |\n| R3C1 | R3C2 |\n"
   let result = parse(source)
@@ -286,6 +300,7 @@ test "parse table with multiple rows" {
   }
 }
 
+///|
 test "parse table with inline formatting" {
   let source = "| **Bold** | *Italic* |\n|---|---|\n| `code` | [link](url) |\n"
   let result = parse(source)
@@ -306,6 +321,7 @@ test "parse table with inline formatting" {
   }
 }
 
+///|
 test "parse nested code block with 4 backticks" {
   // Use 4 backticks to wrap markdown containing 3-backtick code blocks
   let source = "````md\n```js\nconsole.log('hello');\n```\n````\n"
@@ -322,27 +338,30 @@ test "parse nested code block with 4 backticks" {
   }
 }
 
+///|
 test "parse code block with lang and filename" {
   let result = parse("```typescript:src/index.ts\nconst x = 1;\n```\n")
   match result.document.children[0] {
-    Block::FencedCode(info~, ..) => {
+    Block::FencedCode(info~, ..) =>
       inspect(info, content="typescript:src/index.ts")
-    }
     _ => fail("Expected fenced code")
   }
 }
 
+///|
 test "parse code block with lang, filename, and meta" {
   // Support meta attributes like {highlight=[1,3]}
-  let result = parse("```js:app.js {highlight=[1,3]}\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```\n")
+  let result = parse(
+    "```js:app.js {highlight=[1,3]}\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```\n",
+  )
   match result.document.children[0] {
-    Block::FencedCode(info~, ..) => {
+    Block::FencedCode(info~, ..) =>
       inspect(info, content="js:app.js {highlight=[1,3]}")
-    }
     _ => fail("Expected fenced code")
   }
 }
 
+///|
 test "serialize table roundtrip" {
   let source = "| A | B |\n|:---|---:|\n| 1 | 2 |\n"
   let result = parse(source)
@@ -353,6 +372,7 @@ test "serialize table roundtrip" {
   inspect(output.contains("| --: |"), content="true")
 }
 
+///|
 test "parse task list unchecked" {
   let result = parse("- [ ] todo item\n")
   match result.document.children[0] {
@@ -364,6 +384,7 @@ test "parse task list unchecked" {
   }
 }
 
+///|
 test "parse task list checked lowercase" {
   let result = parse("- [x] done item\n")
   match result.document.children[0] {
@@ -375,6 +396,7 @@ test "parse task list checked lowercase" {
   }
 }
 
+///|
 test "parse task list checked uppercase" {
   let result = parse("- [X] done item\n")
   match result.document.children[0] {
@@ -386,6 +408,7 @@ test "parse task list checked uppercase" {
   }
 }
 
+///|
 test "parse task list mixed" {
   let result = parse("- [ ] foo\n- [x] bar\n")
   match result.document.children[0] {
@@ -398,6 +421,7 @@ test "parse task list mixed" {
   }
 }
 
+///|
 test "serialize task list roundtrip" {
   let source = "- [ ] foo\n- [x] bar\n"
   let result = parse(source)

@@ -1,7 +1,9 @@
 ///| HTML Renderer
+
 ///| Renders markdown AST to HTML
 
-///| Render a document to HTML
+///|
+/// Render a document to HTML
 pub fn render_html(doc : Document) -> String {
   let buf = StringBuilder::new()
   for block in doc.children {
@@ -10,7 +12,8 @@ pub fn render_html(doc : Document) -> String {
   buf.to_string()
 }
 
-///| Render a block element to HTML
+///|
+/// Render a block element to HTML
 fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
   match block {
     Block::Paragraph(children~, ..) => {
@@ -18,7 +21,6 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       render_inlines_html(children, buf)
       buf.write_string("</p>\n")
     }
-
     Block::Heading(level~, children~, ..) => {
       buf.write_string("<h")
       buf.write_string(level.to_string())
@@ -28,11 +30,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       buf.write_string(level.to_string())
       buf.write_string(">\n")
     }
-
-    Block::ThematicBreak(..) => {
-      buf.write_string("<hr>\n")
-    }
-
+    Block::ThematicBreak(..) => buf.write_string("<hr>\n")
     Block::FencedCode(info~, code~, ..) => {
       if info.is_empty() {
         buf.write_string("<pre><code>")
@@ -47,13 +45,11 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       buf.write_string(escape_html(code))
       buf.write_string("</code></pre>\n")
     }
-
     Block::IndentedCode(code~, ..) => {
       buf.write_string("<pre><code>")
       buf.write_string(escape_html(code))
       buf.write_string("</code></pre>\n")
     }
-
     Block::Blockquote(children~, ..) => {
       buf.write_string("<blockquote>\n")
       for child in children {
@@ -61,7 +57,6 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       }
       buf.write_string("</blockquote>\n")
     }
-
     Block::BulletList(items~, tight~, ..) => {
       // Check if this list contains task items
       let has_task = items.iter().any(fn(item) { not(item.checked is None) })
@@ -75,7 +70,6 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       }
       buf.write_string("</ul>\n")
     }
-
     Block::OrderedList(items~, start~, tight~, ..) => {
       let has_task = items.iter().any(fn(item) { not(item.checked is None) })
       if start == 1 {
@@ -98,18 +92,20 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       }
       buf.write_string("</ol>\n")
     }
-
     Block::HtmlBlock(html~, ..) => {
       buf.write_string(html)
       if not(html.has_suffix("\n")) {
         buf.write_char('\n')
       }
     }
-
     Block::Table(header~, alignments~, rows~, ..) => {
       buf.write_string("<table>\n<thead>\n<tr>\n")
       for i, cell in header {
-        let align = if i < alignments.length() { alignments[i] } else { TableAlign::None }
+        let align = if i < alignments.length() {
+          alignments[i]
+        } else {
+          TableAlign::None
+        }
         render_table_cell_html(cell, buf, "th", align)
       }
       buf.write_string("</tr>\n</thead>\n")
@@ -118,7 +114,11 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
         for row in rows {
           buf.write_string("<tr>\n")
           for i, cell in row {
-            let align = if i < alignments.length() { alignments[i] } else { TableAlign::None }
+            let align = if i < alignments.length() {
+              alignments[i]
+            } else {
+              TableAlign::None
+            }
             render_table_cell_html(cell, buf, "td", align)
           }
           buf.write_string("</tr>\n")
@@ -127,9 +127,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       }
       buf.write_string("</table>\n")
     }
-
-    Block::BlankLines(..) => ()  // Blank lines don't produce HTML output
-
+    Block::BlankLines(..) => () // Blank lines don't produce HTML output
     Block::FootnoteDefinition(label~, children~, ..) => {
       buf.write_string("<div class=\"footnote\" id=\"fn-")
       buf.write_string(escape_html(label))
@@ -142,8 +140,14 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
   }
 }
 
-///| Render a list item to HTML
-fn render_list_item_html(item : ListItem, buf : StringBuilder, tight : Bool, is_task_list : Bool) -> Unit {
+///|
+/// Render a list item to HTML
+fn render_list_item_html(
+  item : ListItem,
+  buf : StringBuilder,
+  tight : Bool,
+  is_task_list : Bool,
+) -> Unit {
   // Task list items get a special class
   if is_task_list && not(item.checked is None) {
     buf.write_string("<li class=\"task-list-item\">")
@@ -153,11 +157,11 @@ fn render_list_item_html(item : ListItem, buf : StringBuilder, tight : Bool, is_
 
   // Task list checkbox
   match item.checked {
-    Some(true) => buf.write_string("<input type=\"checkbox\" checked disabled> ")
+    Some(true) =>
+      buf.write_string("<input type=\"checkbox\" checked disabled> ")
     Some(false) => buf.write_string("<input type=\"checkbox\" disabled> ")
     None => ()
   }
-
   if tight {
     // Tight list: render inline content without <p> wrapper
     for child in item.children {
@@ -176,8 +180,14 @@ fn render_list_item_html(item : ListItem, buf : StringBuilder, tight : Bool, is_
   buf.write_string("</li>\n")
 }
 
-///| Render a table cell to HTML
-fn render_table_cell_html(cell : TableCell, buf : StringBuilder, tag : String, align : TableAlign) -> Unit {
+///|
+/// Render a table cell to HTML
+fn render_table_cell_html(
+  cell : TableCell,
+  buf : StringBuilder,
+  tag : String,
+  align : TableAlign,
+) -> Unit {
   buf.write_char('<')
   buf.write_string(tag)
   match align {
@@ -193,44 +203,39 @@ fn render_table_cell_html(cell : TableCell, buf : StringBuilder, tag : String, a
   buf.write_string(">\n")
 }
 
-///| Render inline elements to HTML
+///|
+/// Render inline elements to HTML
 fn render_inlines_html(inlines : Array[Inline], buf : StringBuilder) -> Unit {
   for inline in inlines {
     render_inline_html(inline, buf)
   }
 }
 
-///| Render a single inline element to HTML
+///|
+/// Render a single inline element to HTML
 fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
   match inline {
-    Inline::Text(content~, ..) => {
-      buf.write_string(escape_html(content))
-    }
-
+    Inline::Text(content~, ..) => buf.write_string(escape_html(content))
     Inline::Code(content~, ..) => {
       buf.write_string("<code>")
       buf.write_string(escape_html(content))
       buf.write_string("</code>")
     }
-
     Inline::Emphasis(children~, ..) => {
       buf.write_string("<em>")
       render_inlines_html(children, buf)
       buf.write_string("</em>")
     }
-
     Inline::Strong(children~, ..) => {
       buf.write_string("<strong>")
       render_inlines_html(children, buf)
       buf.write_string("</strong>")
     }
-
     Inline::Strikethrough(children~, ..) => {
       buf.write_string("<del>")
       render_inlines_html(children, buf)
       buf.write_string("</del>")
     }
-
     Inline::Link(children~, url~, title~, ..) => {
       buf.write_string("<a href=\"")
       buf.write_string(escape_html_attr(url))
@@ -244,7 +249,6 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
       render_inlines_html(children, buf)
       buf.write_string("</a>")
     }
-
     Inline::RefLink(children~, label~, ..) => {
       // Reference links should be resolved before rendering
       // For now, render as plain text with the label
@@ -254,7 +258,6 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
       buf.write_string(escape_html(label))
       buf.write_char(']')
     }
-
     Inline::Autolink(url~, is_email~, ..) => {
       buf.write_string("<a href=\"")
       if is_email {
@@ -265,7 +268,6 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
       buf.write_string(escape_html(url))
       buf.write_string("</a>")
     }
-
     Inline::Image(alt~, url~, title~, ..) => {
       buf.write_string("<img src=\"")
       buf.write_string(escape_html_attr(url))
@@ -279,7 +281,6 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
       }
       buf.write_string(">")
     }
-
     Inline::RefImage(alt~, label~, ..) => {
       // Reference images should be resolved before rendering
       buf.write_string("![")
@@ -288,19 +289,9 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
       buf.write_string(escape_html(label))
       buf.write_char(']')
     }
-
-    Inline::HtmlInline(html~, ..) => {
-      buf.write_string(html)
-    }
-
-    Inline::SoftBreak(..) => {
-      buf.write_char('\n')
-    }
-
-    Inline::HardBreak(..) => {
-      buf.write_string("<br>\n")
-    }
-
+    Inline::HtmlInline(html~, ..) => buf.write_string(html)
+    Inline::SoftBreak(..) => buf.write_char('\n')
+    Inline::HardBreak(..) => buf.write_string("<br>\n")
     Inline::FootnoteReference(label~, ..) => {
       buf.write_string("<sup><a href=\"#fn-")
       buf.write_string(escape_html_attr(label))
@@ -313,7 +304,8 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
   }
 }
 
-///| Escape HTML special characters in text content
+///|
+/// Escape HTML special characters in text content
 fn escape_html(s : String) -> String {
   let buf = StringBuilder::new()
   for c in s {
@@ -328,7 +320,8 @@ fn escape_html(s : String) -> String {
   buf.to_string()
 }
 
-///| Escape HTML special characters in attribute values
+///|
+/// Escape HTML special characters in attribute values
 fn escape_html_attr(s : String) -> String {
   let buf = StringBuilder::new()
   for c in s {
@@ -344,13 +337,15 @@ fn escape_html_attr(s : String) -> String {
   buf.to_string()
 }
 
-///| Parse markdown and render to HTML
+///|
+/// Parse markdown and render to HTML
 pub fn md_to_html(source : String) -> String {
   let result = parse(source)
   render_html(result.document)
 }
 
-///| Parse markdown and render to HTML (strict mode)
+///|
+/// Parse markdown and render to HTML (strict mode)
 pub fn md_to_html_strict(source : String) -> String {
   let result = parse(source, strict=true)
   render_html(result.document)

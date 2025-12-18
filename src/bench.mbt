@@ -1,7 +1,9 @@
 ///| Markdown parser benchmarks
+
 ///| Run with: moon bench --target js -p mizchi/luna/core/markdown
 
-///| Generate a sample markdown document of given size
+///|
+/// Generate a sample markdown document of given size
 fn generate_sample_markdown(paragraphs : Int) -> String {
   let buf = StringBuilder::new()
 
@@ -20,7 +22,9 @@ fn generate_sample_markdown(paragraphs : Int) -> String {
     buf.write_string("## Section \{i + 1}\n\n")
 
     // Paragraph
-    buf.write_string("This is a paragraph of text. It contains some content that needs to be parsed. ")
+    buf.write_string(
+      "This is a paragraph of text. It contains some content that needs to be parsed. ",
+    )
     buf.write_string("Markdown is a lightweight markup language. ")
     buf.write_string("It is often used for formatting readme files.\n\n")
 
@@ -40,17 +44,21 @@ fn generate_sample_markdown(paragraphs : Int) -> String {
     buf.write_string("> This is a blockquote.\n")
     buf.write_string("> It spans multiple lines.\n\n")
   }
-
   buf.to_string()
 }
 
 // Pre-generate test documents
+
+///|
 let small_doc : String = generate_sample_markdown(5)
 
+///|
 let medium_doc : String = generate_sample_markdown(20)
 
+///|
 let large_doc : String = generate_sample_markdown(100)
 
+///|
 test "parse: small document (5 sections)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(small_doc)
@@ -58,6 +66,7 @@ test "parse: small document (5 sections)" (b : @bench.T) {
   })
 }
 
+///|
 test "parse: medium document (20 sections)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(medium_doc)
@@ -65,6 +74,7 @@ test "parse: medium document (20 sections)" (b : @bench.T) {
   })
 }
 
+///|
 test "parse: large document (100 sections)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(large_doc)
@@ -72,6 +82,7 @@ test "parse: large document (100 sections)" (b : @bench.T) {
   })
 }
 
+///|
 test "serialize: small document" (b : @bench.T) {
   let parsed = parse(small_doc)
   b.bench(fn() {
@@ -80,6 +91,7 @@ test "serialize: small document" (b : @bench.T) {
   })
 }
 
+///|
 test "serialize: medium document" (b : @bench.T) {
   let parsed = parse(medium_doc)
   b.bench(fn() {
@@ -88,6 +100,7 @@ test "serialize: medium document" (b : @bench.T) {
   })
 }
 
+///|
 test "roundtrip: small document" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(small_doc)
@@ -96,6 +109,7 @@ test "roundtrip: small document" (b : @bench.T) {
   })
 }
 
+///|
 test "roundtrip: medium document" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(medium_doc)
@@ -107,25 +121,37 @@ test "roundtrip: medium document" (b : @bench.T) {
 // === Granular benchmarks ===
 
 // Inline parsing benchmarks
+
+///|
 let inline_simple : String = "Hello World"
 
+///|
 let inline_emphasis : String = "Hello *world* and **bold** and `code` here"
 
+///|
 let inline_complex : String = "Check [this link](https://example.com \"title\") and ![image](img.png) with *emphasis* and **strong** and `code`"
 
+///|
 let inline_many : String = "*a* **b** `c` *d* **e** `f` *g* **h** `i` *j* **k** `l`"
 
 // Emphasis edge cases for multi-pass testing
+
+///|
 let inline_nested_emphasis : String = "***foo*** and ***bar*** and ***baz***"
 
+///|
 let inline_emphasis_underscore : String = "_foo_ and __bar__ and ___baz___"
 
+///|
 let inline_mixed_emphasis : String = "*foo _bar* baz_ and **a _b_ c**"
 
+///|
 let inline_unclosed : String = "*unclosed and **also unclosed and more text here"
 
+///|
 let inline_many_emphasis : String = "*a* *b* *c* *d* *e* *f* *g* *h* *i* *j* **k** **l** **m** **n** **o**"
 
+///|
 fn generate_inline_stress(count : Int) -> String {
   let buf = StringBuilder::new()
   for i = 0; i < count; i = i + 1 {
@@ -134,10 +160,16 @@ fn generate_inline_stress(count : Int) -> String {
   buf.to_string()
 }
 
+///|
 let inline_stress_10 : String = generate_inline_stress(10)
+
+///|
 let inline_stress_50 : String = generate_inline_stress(50)
+
+///|
 let inline_stress_100 : String = generate_inline_stress(100)
 
+///|
 test "inline: simple text" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_simple)
@@ -145,6 +177,7 @@ test "inline: simple text" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: emphasis/strong/code" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_emphasis)
@@ -152,6 +185,7 @@ test "inline: emphasis/strong/code" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: links and images" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_complex)
@@ -159,6 +193,7 @@ test "inline: links and images" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: many markers" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_many)
@@ -168,6 +203,7 @@ test "inline: many markers" (b : @bench.T) {
 
 // === Emphasis-specific benchmarks ===
 
+///|
 test "inline: nested emphasis (***)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_nested_emphasis)
@@ -175,6 +211,7 @@ test "inline: nested emphasis (***)" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: underscore emphasis" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_emphasis_underscore)
@@ -182,6 +219,7 @@ test "inline: underscore emphasis" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: mixed emphasis" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_mixed_emphasis)
@@ -189,6 +227,7 @@ test "inline: mixed emphasis" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: unclosed markers" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_unclosed)
@@ -196,6 +235,7 @@ test "inline: unclosed markers" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: many emphasis (15 markers)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_many_emphasis)
@@ -203,6 +243,7 @@ test "inline: many emphasis (15 markers)" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: stress 10 (30 markers)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_stress_10)
@@ -210,6 +251,7 @@ test "inline: stress 10 (30 markers)" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: stress 50 (150 markers)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_stress_50)
@@ -217,6 +259,7 @@ test "inline: stress 50 (150 markers)" (b : @bench.T) {
   })
 }
 
+///|
 test "inline: stress 100 (300 markers)" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_stress_100)
@@ -226,6 +269,7 @@ test "inline: stress 100 (300 markers)" (b : @bench.T) {
 
 // === Tokenizer benchmarks (multi-pass preparation) ===
 
+///|
 test "tokenize: simple text" (b : @bench.T) {
   b.bench(fn() {
     let scanner = Scanner::new(inline_simple)
@@ -234,6 +278,7 @@ test "tokenize: simple text" (b : @bench.T) {
   })
 }
 
+///|
 test "tokenize: emphasis" (b : @bench.T) {
   b.bench(fn() {
     let scanner = Scanner::new(inline_emphasis)
@@ -242,6 +287,7 @@ test "tokenize: emphasis" (b : @bench.T) {
   })
 }
 
+///|
 test "tokenize: stress 50" (b : @bench.T) {
   b.bench(fn() {
     let scanner = Scanner::new(inline_stress_50)
@@ -250,6 +296,7 @@ test "tokenize: stress 50" (b : @bench.T) {
   })
 }
 
+///|
 test "tokenize: stress 100" (b : @bench.T) {
   b.bench(fn() {
     let scanner = Scanner::new(inline_stress_100)
@@ -259,9 +306,18 @@ test "tokenize: stress 100" (b : @bench.T) {
 }
 
 // Pre-tokenize for CloserIndex benchmarks
-let tokens_stress_50 : Array[InlineToken] = tokenize_inline(Scanner::new(inline_stress_50))
-let tokens_stress_100 : Array[InlineToken] = tokenize_inline(Scanner::new(inline_stress_100))
 
+///|
+let tokens_stress_50 : Array[InlineToken] = tokenize_inline(
+  Scanner::new(inline_stress_50),
+)
+
+///|
+let tokens_stress_100 : Array[InlineToken] = tokenize_inline(
+  Scanner::new(inline_stress_100),
+)
+
+///|
 test "closer_index: build stress 50" (b : @bench.T) {
   b.bench(fn() {
     let scanner = Scanner::new(inline_stress_50)
@@ -271,6 +327,7 @@ test "closer_index: build stress 50" (b : @bench.T) {
   })
 }
 
+///|
 test "closer_index: build stress 100" (b : @bench.T) {
   b.bench(fn() {
     let scanner = Scanner::new(inline_stress_100)
@@ -280,6 +337,7 @@ test "closer_index: build stress 100" (b : @bench.T) {
   })
 }
 
+///|
 test "closer_index: lookup 100x" (b : @bench.T) {
   let idx = build_closer_index(tokens_stress_100)
   b.bench(fn() {
@@ -295,6 +353,7 @@ test "closer_index: lookup 100x" (b : @bench.T) {
 
 // === Multipass parser benchmarks (A/B comparison) ===
 
+///|
 test "multipass: simple text" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines_multipass(inline_simple)
@@ -302,6 +361,7 @@ test "multipass: simple text" (b : @bench.T) {
   })
 }
 
+///|
 test "multipass: emphasis" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines_multipass(inline_emphasis)
@@ -309,6 +369,7 @@ test "multipass: emphasis" (b : @bench.T) {
   })
 }
 
+///|
 test "multipass: stress 10" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines_multipass(inline_stress_10)
@@ -316,6 +377,7 @@ test "multipass: stress 10" (b : @bench.T) {
   })
 }
 
+///|
 test "multipass: stress 50" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines_multipass(inline_stress_50)
@@ -323,6 +385,7 @@ test "multipass: stress 50" (b : @bench.T) {
   })
 }
 
+///|
 test "multipass: stress 100" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines_multipass(inline_stress_100)
@@ -331,10 +394,14 @@ test "multipass: stress 100" (b : @bench.T) {
 }
 
 // Table parsing benchmarks
+
+///|
 let table_simple : String = "| A | B |\n|---|---|\n| 1 | 2 |\n"
 
+///|
 let table_medium : String = "| Col1 | Col2 | Col3 | Col4 |\n|:---|:---:|---:|---|\n| a | b | c | d |\n| e | f | g | h |\n| i | j | k | l |\n| m | n | o | p |\n| q | r | s | t |\n"
 
+///|
 fn generate_large_table(rows : Int, cols : Int) -> String {
   let buf = StringBuilder::new()
   // Header
@@ -358,8 +425,10 @@ fn generate_large_table(rows : Int, cols : Int) -> String {
   buf.to_string()
 }
 
+///|
 let table_large : String = generate_large_table(20, 5)
 
+///|
 test "table: simple 2x1" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(table_simple)
@@ -367,6 +436,7 @@ test "table: simple 2x1" (b : @bench.T) {
   })
 }
 
+///|
 test "table: medium 4x5" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(table_medium)
@@ -374,6 +444,7 @@ test "table: medium 4x5" (b : @bench.T) {
   })
 }
 
+///|
 test "table: large 5x20" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(table_large)
@@ -382,8 +453,12 @@ test "table: large 5x20" (b : @bench.T) {
 }
 
 // Scanner operation benchmarks
+
+///|
 test "scanner: read_line 100x" (b : @bench.T) {
-  let text = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n".repeat(10)
+  let text = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n".repeat(
+    10,
+  )
   b.bench(fn() {
     let scanner = Scanner::new(text)
     let mut count = 0
@@ -398,6 +473,7 @@ test "scanner: read_line 100x" (b : @bench.T) {
   })
 }
 
+///|
 test "scanner: peek/advance intensive" (b : @bench.T) {
   let text = "abcdefghijklmnopqrstuvwxyz".repeat(100)
   b.bench(fn() {
@@ -413,8 +489,11 @@ test "scanner: peek/advance intensive" (b : @bench.T) {
 }
 
 // Block-only parsing (paragraph with no inline markers)
+
+///|
 let block_only_doc : String = "# Title\n\nPlain paragraph one.\n\nPlain paragraph two.\n\n```\ncode block\n```\n\n- item 1\n- item 2\n- item 3\n\n> quote here\n"
 
+///|
 test "block: minimal inline content" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(block_only_doc)
@@ -425,26 +504,43 @@ test "block: minimal inline content" (b : @bench.T) {
 // === Incremental parsing benchmarks ===
 
 // Generate a document with many paragraphs for incremental testing
+
+///|
 fn generate_paragraph_doc(count : Int) -> String {
   let buf = StringBuilder::new()
   buf.write_string("# Document Title\n\n")
   for i = 0; i < count; i = i + 1 {
-    buf.write_string("Paragraph \{i + 1} with some content that needs parsing. ")
+    buf.write_string(
+      "Paragraph \{i + 1} with some content that needs parsing. ",
+    )
     buf.write_string("This is a *sample* paragraph with **formatting**.\n\n")
   }
   buf.to_string()
 }
 
+///|
 let incremental_doc_10 : String = generate_paragraph_doc(10)
+
+///|
 let incremental_doc_50 : String = generate_paragraph_doc(50)
+
+///|
 let incremental_doc_100 : String = generate_paragraph_doc(100)
 
 // Pre-parse documents for incremental benchmarks
+
+///|
 let incremental_parsed_10 : ParseResult = parse(incremental_doc_10)
+
+///|
 let incremental_parsed_50 : ParseResult = parse(incremental_doc_50)
+
+///|
 let incremental_parsed_100 : ParseResult = parse(incremental_doc_100)
 
 // Helper to create edited version (change middle paragraph)
+
+///|
 fn edit_middle_paragraph(source : String) -> (String, EditInfo) {
   // Find approximately middle position
   let mid = source.length() / 2
@@ -464,19 +560,22 @@ fn edit_middle_paragraph(source : String) -> (String, EditInfo) {
   let search = "Paragraph"
   let replace = "PARAGRAPH"
   let edit_offset = match source.find(search) {
-    Some(pos) => pos + (edit_pos / 10)  // Offset to get middle occurrence
+    Some(pos) => pos + edit_pos / 10 // Offset to get middle occurrence
     None => edit_pos
   }
-
   let new_source = source.unsafe_substring(start=0, end=edit_offset) +
     replace +
-    source.unsafe_substring(start=edit_offset + search.length(), end=source.length())
-
+    source.unsafe_substring(
+      start=edit_offset + search.length(),
+      end=source.length(),
+    )
   let edit = EditInfo::replace(edit_offset, search.length(), replace.length())
   (new_source, edit)
 }
 
 // Baseline: Full re-parse of 10-paragraph document
+
+///|
 test "full parse: 10 paragraphs" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(incremental_doc_10)
@@ -485,16 +584,22 @@ test "full parse: 10 paragraphs" (b : @bench.T) {
 }
 
 // Incremental: Edit middle of 10-paragraph document
+
+///|
 test "incremental: 10 paragraphs, edit middle" (b : @bench.T) {
   let (new_source, edit) = edit_middle_paragraph(incremental_doc_10)
   let old_doc = incremental_parsed_10.document
   b.bench(fn() {
-    let result = parse_incremental(old_doc, incremental_doc_10, new_source, edit)
+    let result = parse_incremental(
+      old_doc, incremental_doc_10, new_source, edit,
+    )
     b.keep(result)
   })
 }
 
 // Baseline: Full re-parse of 50-paragraph document
+
+///|
 test "full parse: 50 paragraphs" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(incremental_doc_50)
@@ -503,16 +608,22 @@ test "full parse: 50 paragraphs" (b : @bench.T) {
 }
 
 // Incremental: Edit middle of 50-paragraph document
+
+///|
 test "incremental: 50 paragraphs, edit middle" (b : @bench.T) {
   let (new_source, edit) = edit_middle_paragraph(incremental_doc_50)
   let old_doc = incremental_parsed_50.document
   b.bench(fn() {
-    let result = parse_incremental(old_doc, incremental_doc_50, new_source, edit)
+    let result = parse_incremental(
+      old_doc, incremental_doc_50, new_source, edit,
+    )
     b.keep(result)
   })
 }
 
 // Baseline: Full re-parse of 100-paragraph document
+
+///|
 test "full parse: 100 paragraphs" (b : @bench.T) {
   b.bench(fn() {
     let result = parse(incremental_doc_100)
@@ -521,33 +632,49 @@ test "full parse: 100 paragraphs" (b : @bench.T) {
 }
 
 // Incremental: Edit middle of 100-paragraph document
+
+///|
 test "incremental: 100 paragraphs, edit middle" (b : @bench.T) {
   let (new_source, edit) = edit_middle_paragraph(incremental_doc_100)
   let old_doc = incremental_parsed_100.document
   b.bench(fn() {
-    let result = parse_incremental(old_doc, incremental_doc_100, new_source, edit)
+    let result = parse_incremental(
+      old_doc, incremental_doc_100, new_source, edit,
+    )
     b.keep(result)
   })
 }
 
 // Edge case: Edit at the beginning
+
+///|
 test "incremental: 50 paragraphs, edit start" (b : @bench.T) {
-  let new_source = "# CHANGED Title\n" + incremental_doc_50.unsafe_substring(start=18, end=incremental_doc_50.length())
-  let edit = EditInfo::replace(2, 8, 14)  // "Document" -> "CHANGED"
+  let new_source = "# CHANGED Title\n" +
+    incremental_doc_50.unsafe_substring(
+      start=18,
+      end=incremental_doc_50.length(),
+    )
+  let edit = EditInfo::replace(2, 8, 14) // "Document" -> "CHANGED"
   let old_doc = incremental_parsed_50.document
   b.bench(fn() {
-    let result = parse_incremental(old_doc, incremental_doc_50, new_source, edit)
+    let result = parse_incremental(
+      old_doc, incremental_doc_50, new_source, edit,
+    )
     b.keep(result)
   })
 }
 
 // Edge case: Edit at the end
+
+///|
 test "incremental: 50 paragraphs, edit end" (b : @bench.T) {
   let new_source = incremental_doc_50 + "New final paragraph added here.\n\n"
   let edit = EditInfo::insert(incremental_doc_50.length(), 34)
   let old_doc = incremental_parsed_50.document
   b.bench(fn() {
-    let result = parse_incremental(old_doc, incremental_doc_50, new_source, edit)
+    let result = parse_incremental(
+      old_doc, incremental_doc_50, new_source, edit,
+    )
     b.keep(result)
   })
 }
@@ -555,17 +682,22 @@ test "incremental: 50 paragraphs, edit end" (b : @bench.T) {
 // === CRDT実験ベンチマーク ===
 
 // LogicalId生成のオーバーヘッド
+
+///|
 test "crdt: LogicalId generation 1000x" (b : @bench.T) {
   let gen = IdGenerator::new(AgentId(1))
   b.bench(fn() {
     for i = 0; i < 1000; i = i + 1 {
       let _ = gen.next()
+
     }
     b.keep(gen)
   })
 }
 
 // LogicalId比較のオーバーヘッド
+
+///|
 test "crdt: LogicalId compare 1000x" (b : @bench.T) {
   let gen = IdGenerator::new(AgentId(1))
   let ids : Array[LogicalId] = []
@@ -586,25 +718,31 @@ test "crdt: LogicalId compare 1000x" (b : @bench.T) {
 }
 
 // CrdtDocument挿入のオーバーヘッド
+
+///|
 test "crdt: CrdtDocument insert 100 runs" (b : @bench.T) {
   b.bench(fn() {
     let doc = CrdtDocument::new(AgentId(1))
     for i = 0; i < 100; i = i + 1 {
       let _ = doc.insert("Hello World ")
+
     }
     b.keep(doc)
   })
 }
 
 // Tombstone蓄積の影響
+
+///|
 test "crdt: CrdtDocument with 50% tombstones" (b : @bench.T) {
   let doc = CrdtDocument::new(AgentId(1))
   // 200 runs作成、半分を削除
   for i = 0; i < 200; i = i + 1 {
     let _ = doc.insert("Text ")
+
   }
   for i = 0; i < 100; i = i + 1 {
-    doc.delete(i * 2)  // 偶数インデックスを削除
+    doc.delete(i * 2) // 偶数インデックスを削除
   }
   b.bench(fn() {
     let text = doc.get_text()
@@ -613,6 +751,8 @@ test "crdt: CrdtDocument with 50% tombstones" (b : @bench.T) {
 }
 
 // Span vs CrdtSpan のサイズ比較用
+
+///|
 test "crdt: Span creation 1000x" (b : @bench.T) {
   b.bench(fn() {
     let mut last = Span::new(0, 0)
@@ -623,6 +763,7 @@ test "crdt: Span creation 1000x" (b : @bench.T) {
   })
 }
 
+///|
 test "crdt: CrdtSpan creation 1000x" (b : @bench.T) {
   let gen = IdGenerator::new(AgentId(1))
   b.bench(fn() {

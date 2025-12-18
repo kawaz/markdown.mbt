@@ -1,31 +1,49 @@
 ///| TUI-specific plugin support
+
 ///| Uses core plugin types from @markdown
 
-///| TUI renderer options with plugin support
+///|
+/// TUI renderer options with plugin support
 pub struct TuiOptions {
-  ///| Custom code block highlighter
+  /// Custom code block highlighter
   code_highlighter : ((@markdown.CodeBlockInfo, String) -> String)?
 }
 
-///| Create default TUI options
+///|
+/// Create default TUI options
 pub fn TuiOptions::default() -> TuiOptions {
   { code_highlighter: None }
 }
 
-///| Create TUI options with custom code highlighter
-pub fn TuiOptions::with_highlighter(highlighter : (@markdown.CodeBlockInfo, String) -> String) -> TuiOptions {
+///|
+/// Create TUI options with custom code highlighter
+pub fn TuiOptions::with_highlighter(
+  highlighter : (@markdown.CodeBlockInfo, String) -> String,
+) -> TuiOptions {
   { code_highlighter: Some(highlighter) }
 }
 
-///| Create TUI options with simple highlighter (lang, code) -> String
-pub fn TuiOptions::with_simple_highlighter(highlighter : (String, String) -> String) -> TuiOptions {
-  { code_highlighter: Some(fn(info : @markdown.CodeBlockInfo, code : String) -> String {
-    highlighter(info.lang, code)
-  }) }
+///|
+/// Create TUI options with simple highlighter (lang, code) -> String
+pub fn TuiOptions::with_simple_highlighter(
+  highlighter : (String, String) -> String,
+) -> TuiOptions {
+  {
+    code_highlighter: Some(fn(
+      info : @markdown.CodeBlockInfo,
+      code : String,
+    ) -> String {
+      highlighter(info.lang, code)
+    }),
+  }
 }
 
-///| Render document with options
-pub fn render_tui_with_options(doc : @markdown.Document, options : TuiOptions) -> String {
+///|
+/// Render document with options
+pub fn render_tui_with_options(
+  doc : @markdown.Document,
+  options : TuiOptions,
+) -> String {
   let buf = StringBuilder::new()
   for block in doc.children {
     render_block_tui_with_options(block, buf, options)
@@ -33,16 +51,22 @@ pub fn render_tui_with_options(doc : @markdown.Document, options : TuiOptions) -
   buf.to_string()
 }
 
-///| Parse and render with options
+///|
+/// Parse and render with options
 pub fn md_to_tui_with_options(source : String, options : TuiOptions) -> String {
   let result = @markdown.parse(source)
   render_tui_with_options(result.document, options)
 }
 
-///| Render block with options
-fn render_block_tui_with_options(block : @markdown.Block, buf : StringBuilder, options : TuiOptions) -> Unit {
+///|
+/// Render block with options
+fn render_block_tui_with_options(
+  block : @markdown.Block,
+  buf : StringBuilder,
+  options : TuiOptions,
+) -> Unit {
   match block {
-    @markdown.Block::FencedCode(info~, code~, ..) => {
+    @markdown.Block::FencedCode(info~, code~, ..) =>
       match options.code_highlighter {
         Some(highlighter) => {
           // Parse info string and use custom highlighter
@@ -51,12 +75,10 @@ fn render_block_tui_with_options(block : @markdown.Block, buf : StringBuilder, o
           buf.write_string(highlighted)
           buf.write_string("\n\n")
         }
-        None => {
+        None =>
           // Use default rendering
           render_fenced_code_default(info, code, buf)
-        }
       }
-    }
     @markdown.Block::Paragraph(children~, ..) => {
       render_inlines_tui(children, buf)
       buf.write_string("\n\n")
@@ -99,7 +121,8 @@ fn render_block_tui_with_options(block : @markdown.Block, buf : StringBuilder, o
       buf.write_string(italic)
       for child in children {
         match child {
-          @markdown.Block::Paragraph(children~, ..) => render_inlines_tui_raw(children, buf)
+          @markdown.Block::Paragraph(children~, ..) =>
+            render_inlines_tui_raw(children, buf)
           _ => render_block_tui_with_options(child, buf, options)
         }
       }
@@ -117,8 +140,13 @@ fn render_block_tui_with_options(block : @markdown.Block, buf : StringBuilder, o
   }
 }
 
-///| Default fenced code rendering (extracted for reuse)
-fn render_fenced_code_default(info : String, code : String, buf : StringBuilder) -> Unit {
+///|
+/// Default fenced code rendering (extracted for reuse)
+fn render_fenced_code_default(
+  info : String,
+  code : String,
+  buf : StringBuilder,
+) -> Unit {
   // Calculate max line width
   let lines = code.split("\n").collect()
   let mut max_width = 0

@@ -1,23 +1,28 @@
 ///| FFI exports for JS/WASM targets
+
 ///| Document handles are opaque integers that reference internal state
 
 // =============================================================================
 // Internal State Management
 // =============================================================================
 
-///| Stored document with source for incremental parsing
+///|
+/// Stored document with source for incremental parsing
 priv struct StoredDocument {
   result : ParseResult
   source : String
 }
 
-///| Global document storage (handle -> StoredDocument)
+///|
+/// Global document storage (handle -> StoredDocument)
 let documents : Map[Int, StoredDocument] = {}
 
-///| Next available handle ID (using Ref for mutability at top level)
+///|
+/// Next available handle ID (using Ref for mutability at top level)
 let next_handle : Ref[Int] = Ref::new(1)
 
-///| Allocate a new handle for a document
+///|
+/// Allocate a new handle for a document
 fn alloc_handle(result : ParseResult, source : String) -> Int {
   let handle = next_handle.val
   next_handle.val = handle + 1
@@ -25,7 +30,8 @@ fn alloc_handle(result : ParseResult, source : String) -> Int {
   handle
 }
 
-///| Get stored document by handle
+///|
+/// Get stored document by handle
 fn get_stored(handle : Int) -> StoredDocument? {
   documents.get(handle)
 }
@@ -35,14 +41,18 @@ fn get_stored(handle : Int) -> StoredDocument? {
 // =============================================================================
 
 ///| Parse markdown source and return a document handle
-///| Returns 0 on error
+
+///|
+/// Returns 0 on error
 pub fn md_parse(source : String) -> Int {
   let result = parse(source)
   alloc_handle(result, source)
 }
 
 ///| Render document to markdown string
-///| Returns empty string if handle is invalid
+
+///|
+/// Returns empty string if handle is invalid
 pub fn md_render_to_string(handle : Int) -> String {
   match get_stored(handle) {
     Some(stored) => serialize(stored.result.document)
@@ -51,21 +61,32 @@ pub fn md_render_to_string(handle : Int) -> String {
 }
 
 ///| Parse incrementally with edit information
-///| Returns new document handle, or 0 on error
+
+///|
+/// Returns new document handle, or 0 on error
 pub fn md_parse_incremental(
   handle : Int,
   new_source : String,
   change_start : Int,
   old_end : Int,
-  new_end : Int
+  new_end : Int,
 ) -> Int {
   match get_stored(handle) {
     Some(stored) => {
-      let edit = EditInfo::replace(change_start, old_end - change_start, new_end - change_start)
-      let inc_result = parse_incremental(stored.result.document, stored.source, new_source, edit)
+      let edit = EditInfo::replace(
+        change_start,
+        old_end - change_start,
+        new_end - change_start,
+      )
+      let inc_result = parse_incremental(
+        stored.result.document,
+        stored.source,
+        new_source,
+        edit,
+      )
       let new_parse_result : ParseResult = {
         document: inc_result.document,
-        definitions: stored.result.definitions
+        definitions: stored.result.definitions,
       }
       alloc_handle(new_parse_result, new_source)
     }
@@ -73,20 +94,25 @@ pub fn md_parse_incremental(
   }
 }
 
-///| Free a document handle to release memory
+///|
+/// Free a document handle to release memory
 pub fn md_free(handle : Int) -> Unit {
   documents.remove(handle)
 }
 
 ///| Convenience: parse and immediately render (for roundtrip testing)
-///| When strict=true, uses full CommonMark compliance (slower)
-pub fn md_parse_and_render(source : String, strict~ : Bool = false) -> String {
+
+///|
+/// When strict=true, uses full CommonMark compliance (slower)
+pub fn md_parse_and_render(source : String, strict? : Bool = false) -> String {
   let result = parse(source, strict~)
   serialize(result.document)
 }
 
 ///| Render document to HTML
-///| Returns empty string if handle is invalid
+
+///|
+/// Returns empty string if handle is invalid
 pub fn md_render_to_html(handle : Int) -> String {
   match get_stored(handle) {
     Some(stored) => render_html(stored.result.document)

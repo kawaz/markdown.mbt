@@ -1,5 +1,5 @@
-///| Inline parser tests
-
+///|
+/// Inline parser tests
 test "parse inline text" {
   let inlines = parse_inlines("Hello World")
   inspect(inlines.length(), content="1")
@@ -9,6 +9,7 @@ test "parse inline text" {
   }
 }
 
+///|
 test "parse emphasis with asterisk" {
   let inlines = parse_inlines("Hello *world*")
   inspect(inlines.length(), content="2")
@@ -21,6 +22,7 @@ test "parse emphasis with asterisk" {
   }
 }
 
+///|
 test "parse emphasis with underscore" {
   let inlines = parse_inlines("Hello _world_")
   inspect(inlines.length(), content="2")
@@ -30,6 +32,7 @@ test "parse emphasis with underscore" {
   }
 }
 
+///|
 test "parse strong with asterisk" {
   let inlines = parse_inlines("Hello **world**")
   inspect(inlines.length(), content="2")
@@ -42,6 +45,7 @@ test "parse strong with asterisk" {
   }
 }
 
+///|
 test "parse strong with underscore" {
   let inlines = parse_inlines("Hello __world__")
   inspect(inlines.length(), content="2")
@@ -51,6 +55,7 @@ test "parse strong with underscore" {
   }
 }
 
+///|
 test "parse inline code" {
   let inlines = parse_inlines("Hello `code` world")
   inspect(inlines.length(), content="3")
@@ -63,6 +68,7 @@ test "parse inline code" {
   }
 }
 
+///|
 test "parse inline code with double backticks" {
   let inlines = parse_inlines("Use ``code with `backticks` inside``")
   match inlines[1] {
@@ -74,6 +80,7 @@ test "parse inline code with double backticks" {
   }
 }
 
+///|
 test "parse link" {
   let inlines = parse_inlines("Click [here](https://example.com)")
   inspect(inlines.length(), content="2")
@@ -87,6 +94,7 @@ test "parse link" {
   }
 }
 
+///|
 test "parse link with title" {
   let inlines = parse_inlines("[link](https://example.com \"Title\")")
   match inlines[0] {
@@ -98,6 +106,7 @@ test "parse link with title" {
   }
 }
 
+///|
 test "parse reference link" {
   let inlines = parse_inlines("[text][ref]")
   match inlines[0] {
@@ -109,6 +118,7 @@ test "parse reference link" {
   }
 }
 
+///|
 test "parse image" {
   let inlines = parse_inlines("![alt text](image.png)")
   match inlines[0] {
@@ -121,6 +131,7 @@ test "parse image" {
   }
 }
 
+///|
 test "parse image with title" {
   let inlines = parse_inlines("![alt](image.png \"Title\")")
   match inlines[0] {
@@ -133,6 +144,7 @@ test "parse image with title" {
   }
 }
 
+///|
 test "parse reference image" {
   let inlines = parse_inlines("![alt][ref]")
   match inlines[0] {
@@ -144,6 +156,7 @@ test "parse reference image" {
   }
 }
 
+///|
 test "parse autolink URL" {
   let inlines = parse_inlines("<https://example.com>")
   match inlines[0] {
@@ -155,6 +168,7 @@ test "parse autolink URL" {
   }
 }
 
+///|
 test "parse autolink email" {
   let inlines = parse_inlines("<user@example.com>")
   match inlines[0] {
@@ -166,77 +180,90 @@ test "parse autolink email" {
   }
 }
 
+///|
 test "parse strikethrough" {
   let inlines = parse_inlines("Hello ~~deleted~~ world")
   inspect(inlines.length(), content="3")
   match inlines[1] {
-    Inline::Strikethrough(children~, ..) => {
+    Inline::Strikethrough(children~, ..) =>
       inspect(children.length(), content="1")
-    }
     _ => fail("Expected Strikethrough")
   }
 }
 
+///|
 test "parse hard break two spaces" {
   let inlines = parse_inlines("Line 1  \nLine 2")
   // Should have: "Line 1", HardBreak, "Line 2"
-  let has_hard_break = inlines.iter().any(fn(i) {
-    match i {
-      Inline::HardBreak(style=HardBreakStyle::TwoSpaces, ..) => true
-      _ => false
-    }
-  })
+  let has_hard_break = inlines
+    .iter()
+    .any(fn(i) {
+      match i {
+        Inline::HardBreak(style=HardBreakStyle::TwoSpaces, ..) => true
+        _ => false
+      }
+    })
   inspect(has_hard_break, content="true")
 }
 
+///|
 test "parse hard break backslash" {
   let inlines = parse_inlines("Line 1\\\nLine 2")
-  let has_hard_break = inlines.iter().any(fn(i) {
-    match i {
-      Inline::HardBreak(style=HardBreakStyle::Backslash, ..) => true
-      _ => false
-    }
-  })
+  let has_hard_break = inlines
+    .iter()
+    .any(fn(i) {
+      match i {
+        Inline::HardBreak(style=HardBreakStyle::Backslash, ..) => true
+        _ => false
+      }
+    })
   inspect(has_hard_break, content="true")
 }
 
+///|
 test "parse soft break" {
   let inlines = parse_inlines("Line 1\nLine 2")
-  let has_soft_break = inlines.iter().any(fn(i) {
-    match i {
-      Inline::SoftBreak(..) => true
-      _ => false
-    }
-  })
+  let has_soft_break = inlines
+    .iter()
+    .any(fn(i) {
+      match i {
+        Inline::SoftBreak(..) => true
+        _ => false
+      }
+    })
   inspect(has_soft_break, content="true")
 }
 
+///|
 test "parse escaped character" {
   let inlines = parse_inlines("Hello \\*not emphasis\\*")
   // Should parse as text, not emphasis
-  let is_all_text = inlines.iter().all(fn(i) {
-    match i {
-      Inline::Text(..) => true
-      _ => false
-    }
-  })
+  let is_all_text = inlines
+    .iter()
+    .all(fn(i) {
+      match i {
+        Inline::Text(..) => true
+        _ => false
+      }
+    })
   inspect(is_all_text, content="true")
 }
 
+///|
 test "parse nested emphasis in link" {
   let inlines = parse_inlines("[**bold** link](url)")
   match inlines[0] {
-    Inline::Link(children~, ..) => {
+    Inline::Link(children~, ..) =>
       // Should have Strong as first child
       match children[0] {
         Inline::Strong(..) => ()
         _ => fail("Expected Strong inside Link")
       }
-    }
     _ => fail("Expected Link")
   }
 }
 
+///|
 test "parse mixed inline content" {
   let inlines = parse_inlines("Hello *world* and `code`")
   inspect(inlines.length() >= 4, content="true")

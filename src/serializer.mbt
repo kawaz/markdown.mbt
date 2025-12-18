@@ -1,6 +1,7 @@
 ///| CST Serializer - Convert CST back to markdown text (lossless roundtrip)
 
-///| Serialize document to markdown string
+///|
+/// Serialize document to markdown string
 pub fn serialize(doc : Document) -> String {
   let buf = StringBuilder::new()
 
@@ -24,14 +25,13 @@ pub fn serialize(doc : Document) -> String {
       buf.write_char('\n')
     }
     first = false
-
     serialize_block(block, buf)
   }
-
   buf.to_string()
 }
 
-///| Serialize frontmatter
+///|
+/// Serialize frontmatter
 fn serialize_frontmatter(fm : Frontmatter, buf : StringBuilder) -> Unit {
   buf.write_string("---\n")
   buf.write_string(fm.raw)
@@ -41,7 +41,8 @@ fn serialize_frontmatter(fm : Frontmatter, buf : StringBuilder) -> Unit {
   buf.write_string("---\n")
 }
 
-///| Write n copies of a character
+///|
+/// Write n copies of a character
 fn write_chars(buf : StringBuilder, c : Char, n : Int) -> Unit {
   for i = 0; i < n; i = i + 1 {
     buf.write_char(c)
@@ -49,26 +50,26 @@ fn write_chars(buf : StringBuilder, c : Char, n : Int) -> Unit {
 }
 
 ///| Calculate minimum backticks for code span
-///| Returns the smallest count that doesn't match any backtick run in content
+
+///|
+/// Returns the smallest count that doesn't match any backtick run in content
 fn calc_code_span_backticks(content : String) -> Int {
   // Track which run lengths exist using a simple bitmask for small values
   // For runs > 63, we fall back to max_run + 1
-  let mut run_mask : UInt64 = 0  // bit N set means run of length N exists
+  let mut run_mask : UInt64 = 0 // bit N set means run of length N exists
   let mut max_run = 0
   let mut current_run = 0
   for c in content {
     if c == '`' {
       current_run += 1
-    } else {
-      if current_run > 0 {
-        if current_run <= 63 {
-          run_mask = run_mask | (1UL << current_run)
-        }
-        if current_run > max_run {
-          max_run = current_run
-        }
-        current_run = 0
+    } else if current_run > 0 {
+      if current_run <= 63 {
+        run_mask = run_mask | (1UL << current_run)
       }
+      if current_run > max_run {
+        max_run = current_run
+      }
+      current_run = 0
     }
   }
   if current_run > 0 {
@@ -93,7 +94,8 @@ fn calc_code_span_backticks(content : String) -> Int {
   }
 }
 
-///| Calculate minimum fence length for code block
+///|
+/// Calculate minimum fence length for code block
 fn calc_fence_length(code : String) -> Int {
   let mut fence_len = 3
   let mut count = 0
@@ -114,15 +116,14 @@ fn calc_fence_length(code : String) -> Int {
   fence_len
 }
 
-///| Serialize a block
+///|
+/// Serialize a block
 fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
   match block {
-    Block::ThematicBreak(..) => {
+    Block::ThematicBreak(..) =>
       // GFM style: no leading trivia, always use ***
       buf.write_string("***\n")
-    }
-
-    Block::Heading(level~, style~, children~, ..) => {
+    Block::Heading(level~, style~, children~, ..) =>
       // GFM style: no leading trivia, no closing hashes
       match style {
         HeadingStyle::Atx => {
@@ -141,14 +142,11 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
           buf.write_char('\n')
         }
       }
-    }
-
     Block::Paragraph(children~, ..) => {
       // GFM style: no leading/trailing trivia
       serialize_inlines(children, buf)
       buf.write_char('\n')
     }
-
     Block::FencedCode(info~, code~, ..) => {
       // GFM style: always use ``` (remark default)
       let fence_len = calc_fence_length(code)
@@ -164,7 +162,6 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
       write_chars(buf, '`', fence_len)
       buf.write_char('\n')
     }
-
     Block::IndentedCode(code~, ..) => {
       // remark converts indented code to fenced code
       let fence_len = calc_fence_length(code)
@@ -177,8 +174,7 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
       write_chars(buf, '`', fence_len)
       buf.write_char('\n')
     }
-
-    Block::Blockquote(children~, ..) => {
+    Block::Blockquote(children~, ..) =>
       // Serialize each block with > prefix
       for child in children {
         let child_buf = StringBuilder::new()
@@ -193,26 +189,26 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
           }
         }
       }
-    }
-
-    Block::BulletList(items~, ..) => {
+    Block::BulletList(items~, ..) =>
       // GFM style: always use *, no marker_offset
       serialize_bullet_list_items(items, buf, 0)
-    }
-
-    Block::OrderedList(start~, items~, ..) => {
+    Block::OrderedList(start~, items~, ..) =>
       // GFM style: always use ., no marker_offset
       serialize_ordered_list_items(items, buf, 0, start)
-    }
-
     Block::HtmlBlock(html~, ..) => {
       buf.write_string(html)
       if not(html.has_suffix("\n")) {
         buf.write_char('\n')
       }
     }
-
-    Block::Table(header~, alignments~, rows~, leading_trivia~, trailing_trivia~, ..) => {
+    Block::Table(
+      header~,
+      alignments~,
+      rows~,
+      leading_trivia~,
+      trailing_trivia~,
+      ..
+    ) => {
       buf.write_string(leading_trivia.content)
       // Header row
       buf.write_char('|')
@@ -245,14 +241,17 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
       }
       buf.write_string(trailing_trivia.content)
     }
-
-    Block::BlankLines(count~, ..) => {
+    Block::BlankLines(count~, ..) =>
       for i = 0; i < count; i = i + 1 {
         buf.write_char('\n')
       }
-    }
-
-    Block::FootnoteDefinition(label~, children~, leading_trivia~, trailing_trivia~, ..) => {
+    Block::FootnoteDefinition(
+      label~,
+      children~,
+      leading_trivia~,
+      trailing_trivia~,
+      ..
+    ) => {
       buf.write_string(leading_trivia.content)
       buf.write_string("[^")
       buf.write_string(label)
@@ -261,7 +260,7 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
       let mut first = true
       for child in children {
         if not(first) {
-          buf.write_string("\n    ")  // Indent continuation
+          buf.write_string("\n    ") // Indent continuation
         }
         let child_buf = StringBuilder::new()
         serialize_block(child, child_buf)
@@ -275,24 +274,30 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
   }
 }
 
-///| Serialize inline content
+///|
+/// Serialize inline content
 fn serialize_inlines(inlines : Array[Inline], buf : StringBuilder) -> Unit {
   for inline in inlines {
     serialize_inline(inline, buf)
   }
 }
 
-///| Serialize table cell inline content (escapes pipes)
-fn serialize_table_cell_inlines(inlines : Array[Inline], buf : StringBuilder) -> Unit {
+///|
+/// Serialize table cell inline content (escapes pipes)
+fn serialize_table_cell_inlines(
+  inlines : Array[Inline],
+  buf : StringBuilder,
+) -> Unit {
   for inline in inlines {
     serialize_table_cell_inline(inline, buf)
   }
 }
 
-///| Serialize a single inline element for table cells (escapes pipes in text)
+///|
+/// Serialize a single inline element for table cells (escapes pipes in text)
 fn serialize_table_cell_inline(inline : Inline, buf : StringBuilder) -> Unit {
   match inline {
-    Inline::Text(content~, ..) => {
+    Inline::Text(content~, ..) =>
       // Escape pipe characters in table cells
       for c in content {
         if c == '|' {
@@ -301,55 +306,49 @@ fn serialize_table_cell_inline(inline : Inline, buf : StringBuilder) -> Unit {
           buf.write_char(c)
         }
       }
-    }
     // For other inline types, delegate to regular serialization
     _ => serialize_inline(inline, buf)
   }
 }
 
-///| Serialize a single inline element
+///|
+/// Serialize a single inline element
 fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
   match inline {
     Inline::Text(content~, ..) => buf.write_string(content)
-
     Inline::SoftBreak(..) => buf.write_char('\n')
-
-    Inline::HardBreak(..) => {
+    Inline::HardBreak(..) =>
       // remark uses backslash style by default
       buf.write_string("\\\n")
-    }
-
     Inline::Emphasis(children~, ..) => {
       // Always use * for GFM compatibility (remark default)
       buf.write_char('*')
       serialize_inlines(children, buf)
       buf.write_char('*')
     }
-
     Inline::Strong(children~, ..) => {
       // Always use ** for GFM compatibility (remark default)
       buf.write_string("**")
       serialize_inlines(children, buf)
       buf.write_string("**")
     }
-
     Inline::Strikethrough(children~, ..) => {
       buf.write_string("~~")
       serialize_inlines(children, buf)
       buf.write_string("~~")
     }
-
     Inline::Code(content~, ..) => {
       // Calculate minimum backticks needed (must not match any run in content)
       let backticks = calc_code_span_backticks(content)
       write_chars(buf, '`', backticks)
       // Add padding space if content starts/ends with backtick
       // (Spaces at both ends need padding only if NOT all spaces, to prevent trimming)
-      let needs_padding = content.length() > 0 && {
-        let first = content.get_char(0)
-        let last = content.get_char(content.length() - 1)
-        first == Some('`') || last == Some('`')
-      }
+      let needs_padding = content.length() > 0 &&
+        {
+          let first = content.get_char(0)
+          let last = content.get_char(content.length() - 1)
+          first == Some('`') || last == Some('`')
+        }
       if needs_padding {
         buf.write_char(' ')
       }
@@ -359,7 +358,6 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       }
       write_chars(buf, '`', backticks)
     }
-
     Inline::Link(children~, url~, title~, ..) => {
       buf.write_char('[')
       serialize_inlines(children, buf)
@@ -372,7 +370,6 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       }
       buf.write_char(')')
     }
-
     Inline::RefLink(children~, label~, ..) => {
       buf.write_char('[')
       serialize_inlines(children, buf)
@@ -380,13 +377,11 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       buf.write_string(label)
       buf.write_char(']')
     }
-
     Inline::Autolink(url~, ..) => {
       buf.write_char('<')
       buf.write_string(url)
       buf.write_char('>')
     }
-
     Inline::Image(alt~, url~, title~, ..) => {
       buf.write_string("![")
       buf.write_string(alt)
@@ -399,7 +394,6 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       }
       buf.write_char(')')
     }
-
     Inline::RefImage(alt~, label~, ..) => {
       buf.write_string("![")
       buf.write_string(alt)
@@ -407,9 +401,7 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       buf.write_string(label)
       buf.write_char(']')
     }
-
     Inline::HtmlInline(html~, ..) => buf.write_string(html)
-
     Inline::FootnoteReference(label~, ..) => {
       buf.write_string("[^")
       buf.write_string(label)
@@ -418,7 +410,8 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
   }
 }
 
-///| Serialize link definitions
+///|
+/// Serialize link definitions
 pub fn serialize_definitions(defs : Array[LinkDefinition]) -> String {
   let buf = StringBuilder::new()
   for def in defs {
@@ -436,11 +429,12 @@ pub fn serialize_definitions(defs : Array[LinkDefinition]) -> String {
   buf.to_string()
 }
 
-///| Serialize bullet list items with indentation
+///|
+/// Serialize bullet list items with indentation
 fn serialize_bullet_list_items(
   items : Array[ListItem],
   buf : StringBuilder,
-  indent : Int
+  indent : Int,
 ) -> Unit {
   for item in items {
     // Write indentation
@@ -484,12 +478,13 @@ fn serialize_bullet_list_items(
   }
 }
 
-///| Serialize ordered list items with indentation
+///|
+/// Serialize ordered list items with indentation
 fn serialize_ordered_list_items(
   items : Array[ListItem],
   buf : StringBuilder,
   indent : Int,
-  start : Int
+  start : Int,
 ) -> Unit {
   let mut num = start
   for item in items {
@@ -526,7 +521,12 @@ fn serialize_ordered_list_items(
           if first_block {
             buf.write_char('\n')
           }
-          serialize_ordered_list_items(nested_items, buf, indent + 3, nested_start)
+          serialize_ordered_list_items(
+            nested_items,
+            buf,
+            indent + 3,
+            nested_start,
+          )
         }
         _ => {
           serialize_block(child, buf)

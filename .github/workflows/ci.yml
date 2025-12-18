@@ -11,18 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup MoonBit
-        uses: moonbitlang/setup-moonbit@v1
-
+      - name: Setup Moon
+        uses: illusory0x0/setup-moonbit@v0.1.0
+        with:
+          version: stable
       - name: Check
         run: moon check
-
       - name: Test (JS)
         run: moon test --target js
-
       - name: Test (WASM-GC)
         run: moon test --target wasm-gc
-
       - name: Format check
         run: moon fmt --check
