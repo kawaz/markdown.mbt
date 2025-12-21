@@ -1,0 +1,12 @@
+{
+  "name": "mizchi/markdown_bench",
+  "version": "0.0.1",
+  "deps": {
+    "mizchi/markdown": {
+      "path": ".."
+    },
+    "moonbitlang/x": "0.4.38",
+    "rami3l/cmark": "0.4.0"
+  },
+  "preferred-target": "js"
+}
