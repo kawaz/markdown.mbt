@@ -4,3 +4,4 @@ node_modules/
 src/cmark_tests/
 src/gfm_tests/
 playground/dist/
+wrangler.json
