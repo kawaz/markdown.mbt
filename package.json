@@ -1,6 +1,6 @@
 {
   "name": "@mizchi/markdown",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "incremental markdown parser",
   "scripts": {
     "prepublishOnly": "moon build"
