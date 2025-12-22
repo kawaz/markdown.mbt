@@ -1,8 +1,7 @@
 {
   "import": [
     "mizchi/markdown",
-    "moonbitlang/x/fs",
-    "rami3l/cmark/cmark"
+    "moonbitlang/x/fs"
   ],
   "is-main": true,
   "targets": {

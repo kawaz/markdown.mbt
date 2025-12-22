@@ -226,45 +226,6 @@ fn main {
   println("  50 paragraphs:  \{speedup_50.to_string()}x faster")
   println("  100 paragraphs: \{speedup_100.to_string()}x faster")
 
-  // === rami3l/cmark benchmarks ===
-  println("\n--- rami3l/cmark Parse Benchmarks ---")
-  let cmark_r1 = run_bench("cmark:parse:small", 100, fn() {
-    let _ = @cmark.Doc::from_string(small_doc)
-
-  })
-  println(cmark_r1.to_string())
-  results.push(cmark_r1)
-  let cmark_r2 = run_bench("cmark:parse:medium", 50, fn() {
-    let _ = @cmark.Doc::from_string(medium_doc)
-
-  })
-  println(cmark_r2.to_string())
-  results.push(cmark_r2)
-  let cmark_r3 = run_bench("cmark:parse:large", 20, fn() {
-    let _ = @cmark.Doc::from_string(large_doc)
-
-  })
-  println(cmark_r3.to_string())
-  results.push(cmark_r3)
-
-  // Comparison summary
-  println("\n=== Parser Comparison ===")
-  let mizchi_small = results[0].avg_us
-  let mizchi_medium = results[1].avg_us
-  let mizchi_large = results[2].avg_us
-  let cmark_small = cmark_r1.avg_us
-  let cmark_medium = cmark_r2.avg_us
-  let cmark_large = cmark_r3.avg_us
-  println(
-    "small:  mizchi/markdown \{mizchi_small.to_string()} us vs cmark \{cmark_small.to_string()} us (ratio: \{(cmark_small / mizchi_small).to_string()})",
-  )
-  println(
-    "medium: mizchi/markdown \{mizchi_medium.to_string()} us vs cmark \{cmark_medium.to_string()} us (ratio: \{(cmark_medium / mizchi_medium).to_string()})",
-  )
-  println(
-    "large:  mizchi/markdown \{mizchi_large.to_string()} us vs cmark \{cmark_large.to_string()} us (ratio: \{(cmark_large / mizchi_large).to_string()})",
-  )
-
   // Write results to file
   let output = StringBuilder::new()
   output.write_string("benchmark,iterations,avg_us\n")

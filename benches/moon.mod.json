@@ -5,8 +5,7 @@
     "mizchi/markdown": {
       "path": ".."
     },
-    "moonbitlang/x": "0.4.38",
-    "rami3l/cmark": "0.4.0"
+    "moonbitlang/x": "0.4.38"
   },
   "preferred-target": "js"
 }

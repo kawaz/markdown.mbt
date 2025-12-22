@@ -81,6 +81,10 @@ let doc = parse(source, strict=true)
 - [ ] Consider splitting large files (block_parser.mbt is quite large)
 - [ ] Clean up deprecated `substring` calls
 
+### Benchmarks
+
+- [ ] **rami3l/cmark comparison benchmarks**: Restore when cmark is updated for current MoonBit version (removed due to UInt16/Int incompatibility)
+
 ### Future Enhancements
 
 - [ ] **Incremental inline parsing**: Currently only block-level incremental parsing
