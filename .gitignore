@@ -5,3 +5,4 @@ src/cmark_tests/
 src/gfm_tests/
 playground/dist/
 wrangler.json
+bench_results.csv
