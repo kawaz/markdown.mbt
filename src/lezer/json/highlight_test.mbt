@@ -1,11 +1,11 @@
 ///|
 /// Tests for syntax highlighting
-test "HighlightTag::to_class returns correct class names" {
-  assert_eq(HighlightTag::String.to_class(), "hl-string")
-  assert_eq(HighlightTag::Number.to_class(), "hl-number")
-  assert_eq(HighlightTag::PropertyName.to_class(), "hl-property")
-  assert_eq(HighlightTag::Brace.to_class(), "hl-brace")
-  assert_eq(HighlightTag::None.to_class(), "")
+test "@lezer.HighlightTag::to_class returns correct class names" {
+  assert_eq(@lezer.HighlightTag::String.to_class(), "hl-string")
+  assert_eq(@lezer.HighlightTag::Number.to_class(), "hl-number")
+  assert_eq(@lezer.HighlightTag::PropertyName.to_class(), "hl-property")
+  assert_eq(@lezer.HighlightTag::Brace.to_class(), "hl-brace")
+  assert_eq(@lezer.HighlightTag::None.to_class(), "")
 }
 
 ///|
@@ -71,14 +71,14 @@ test "highlight tokens have correct positions" {
 }
 
 ///|
-test "Highlighter::get_tag returns None for unknown nodes" {
-  let h = Highlighter::new()
+test "@lezer.Highlighter::get_tag returns None for unknown nodes" {
+  let h = @lezer.Highlighter::new()
   assert_eq(h.get_tag("UnknownNode"), None)
 }
 
 ///|
 test "Highlighter can be customized" {
-  let h = Highlighter::new()
+  let h = @lezer.Highlighter::new()
   h.add_rule("CustomNode", Keyword)
   assert_eq(h.get_tag("CustomNode"), Keyword)
 }

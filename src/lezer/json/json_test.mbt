@@ -116,7 +116,7 @@ test "parse_json parses array" {
 test "TreeCursor traverses JSON tree" {
   let tree = parse_json("{\"a\": 1}")
   assert_true(tree is Some(_))
-  let cursor = TreeCursor::new(tree.unwrap())
+  let cursor = @lezer.TreeCursor::new(tree.unwrap())
   assert_eq(cursor.name(), "JsonDocument")
 
   // Navigate to Object
@@ -414,11 +414,11 @@ test "parse_json handles mixed value types" {
 test "TreeCursor full traversal" {
   let tree = parse_json("{\"a\": [1, 2]}")
   assert_true(tree is Some(_))
-  let cursor = TreeCursor::new(tree.unwrap())
+  let cursor = @lezer.TreeCursor::new(tree.unwrap())
   let visited : Array[String] = []
 
   // Depth-first traversal using cursor
-  fn traverse(cursor : TreeCursor, visited : Array[String]) -> Unit {
+  fn traverse(cursor : @lezer.TreeCursor, visited : Array[String]) -> Unit {
     visited.push(cursor.name())
     if cursor.first_child() {
       traverse(cursor, visited)
@@ -443,7 +443,7 @@ test "TreeCursor full traversal" {
 test "TreeCursor depth tracking" {
   let tree = parse_json("{\"a\": {\"b\": 1}}")
   assert_true(tree is Some(_))
-  let cursor = TreeCursor::new(tree.unwrap())
+  let cursor = @lezer.TreeCursor::new(tree.unwrap())
 
   // Root depth = 0
   assert_eq(cursor.depth(), 0)

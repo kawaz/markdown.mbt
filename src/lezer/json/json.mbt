@@ -84,7 +84,7 @@ pub fn JsonNodeId::from_int(id : Int) -> JsonNodeId {
 
 ///|
 /// Create NodeType for JSON
-pub fn json_node_type(id : JsonNodeId) -> NodeType {
+pub fn json_node_type(id : JsonNodeId) -> @lezer.NodeType {
   let name = match id {
     JsonDocument => "JsonDocument"
     Object => "Object"
@@ -104,7 +104,7 @@ pub fn json_node_type(id : JsonNodeId) -> NodeType {
     PropertyName => "PropertyName"
     Error => "Error"
   }
-  NodeType::new(id.to_int(), name)
+  @lezer.NodeType::new(id.to_int(), name)
 }
 
 // =============================================================================
@@ -425,7 +425,7 @@ pub fn JsonParser::expect(
 
 ///|
 /// Parse a JSON value
-pub fn JsonParser::parse_value(self : JsonParser) -> Tree? {
+pub fn JsonParser::parse_value(self : JsonParser) -> @lezer.Tree? {
   match self.peek() {
     Some(token) =>
       match token.node_type {
@@ -433,23 +433,23 @@ pub fn JsonParser::parse_value(self : JsonParser) -> Tree? {
         BracketOpen => self.parse_array()
         String => {
           let _ = self.advance()
-          Some(Tree::leaf(json_node_type(String), token.from, token.to))
+          Some(@lezer.Tree::leaf(json_node_type(String), token.from, token.to))
         }
         Number => {
           let _ = self.advance()
-          Some(Tree::leaf(json_node_type(Number), token.from, token.to))
+          Some(@lezer.Tree::leaf(json_node_type(Number), token.from, token.to))
         }
         True => {
           let _ = self.advance()
-          Some(Tree::leaf(json_node_type(True), token.from, token.to))
+          Some(@lezer.Tree::leaf(json_node_type(True), token.from, token.to))
         }
         False => {
           let _ = self.advance()
-          Some(Tree::leaf(json_node_type(False), token.from, token.to))
+          Some(@lezer.Tree::leaf(json_node_type(False), token.from, token.to))
         }
         Null => {
           let _ = self.advance()
-          Some(Tree::leaf(json_node_type(Null), token.from, token.to))
+          Some(@lezer.Tree::leaf(json_node_type(Null), token.from, token.to))
         }
         _ => None
       }
@@ -459,15 +459,15 @@ pub fn JsonParser::parse_value(self : JsonParser) -> Tree? {
 
 ///|
 /// Parse a JSON object
-pub fn JsonParser::parse_object(self : JsonParser) -> Tree? {
+pub fn JsonParser::parse_object(self : JsonParser) -> @lezer.Tree? {
   let open_brace = self.expect(BraceOpen)
   guard open_brace is Some(open_token) else { return None }
-  let children : Array[Tree] = []
+  let children : Array[@lezer.Tree] = []
   let start = open_token.from
 
   // Add opening brace as child
   children.push(
-    Tree::leaf(json_node_type(BraceOpen), open_token.from, open_token.to),
+    @lezer.Tree::leaf(json_node_type(BraceOpen), open_token.from, open_token.to),
   )
 
   // Parse properties
@@ -486,7 +486,7 @@ pub fn JsonParser::parse_object(self : JsonParser) -> Tree? {
           Some(comma_token) if comma_token.node_type == Comma => {
             let _ = self.advance()
             children.push(
-              Tree::leaf(
+              @lezer.Tree::leaf(
                 json_node_type(Comma),
                 comma_token.from,
                 comma_token.to,
@@ -505,7 +505,7 @@ pub fn JsonParser::parse_object(self : JsonParser) -> Tree? {
   let end = match close_brace {
     Some(token) => {
       children.push(
-        Tree::leaf(json_node_type(BraceClose), token.from, token.to),
+        @lezer.Tree::leaf(json_node_type(BraceClose), token.from, token.to),
       )
       token.to
     }
@@ -517,20 +517,20 @@ pub fn JsonParser::parse_object(self : JsonParser) -> Tree? {
         start + 1
       }
   }
-  Some(Tree::node(json_node_type(Object), start, end, children))
+  Some(@lezer.Tree::node(json_node_type(Object), start, end, children))
 }
 
 ///|
 /// Parse a property (key: value)
-pub fn JsonParser::parse_property(self : JsonParser) -> Tree? {
+pub fn JsonParser::parse_property(self : JsonParser) -> @lezer.Tree? {
   let key = self.expect(String)
   guard key is Some(key_token) else { return None }
   let start = key_token.from
-  let children : Array[Tree] = []
+  let children : Array[@lezer.Tree] = []
 
   // Property name (different from regular string for highlighting)
   children.push(
-    Tree::leaf(json_node_type(PropertyName), key_token.from, key_token.to),
+    @lezer.Tree::leaf(json_node_type(PropertyName), key_token.from, key_token.to),
   )
 
   // Colon
@@ -538,7 +538,7 @@ pub fn JsonParser::parse_property(self : JsonParser) -> Tree? {
   match colon {
     Some(colon_token) =>
       children.push(
-        Tree::leaf(json_node_type(Colon), colon_token.from, colon_token.to),
+        @lezer.Tree::leaf(json_node_type(Colon), colon_token.from, colon_token.to),
       )
     None => ()
   }
@@ -553,20 +553,20 @@ pub fn JsonParser::parse_property(self : JsonParser) -> Tree? {
   } else {
     key_token.to
   }
-  Some(Tree::node(json_node_type(Property), start, end, children))
+  Some(@lezer.Tree::node(json_node_type(Property), start, end, children))
 }
 
 ///|
 /// Parse a JSON array
-pub fn JsonParser::parse_array(self : JsonParser) -> Tree? {
+pub fn JsonParser::parse_array(self : JsonParser) -> @lezer.Tree? {
   let open_bracket = self.expect(BracketOpen)
   guard open_bracket is Some(open_token) else { return None }
-  let children : Array[Tree] = []
+  let children : Array[@lezer.Tree] = []
   let start = open_token.from
 
   // Add opening bracket as child
   children.push(
-    Tree::leaf(json_node_type(BracketOpen), open_token.from, open_token.to),
+    @lezer.Tree::leaf(json_node_type(BracketOpen), open_token.from, open_token.to),
   )
 
   // Parse elements
@@ -584,7 +584,7 @@ pub fn JsonParser::parse_array(self : JsonParser) -> Tree? {
           Some(comma_token) if comma_token.node_type == Comma => {
             let _ = self.advance()
             children.push(
-              Tree::leaf(
+              @lezer.Tree::leaf(
                 json_node_type(Comma),
                 comma_token.from,
                 comma_token.to,
@@ -602,7 +602,7 @@ pub fn JsonParser::parse_array(self : JsonParser) -> Tree? {
   let end = match close_bracket {
     Some(token) => {
       children.push(
-        Tree::leaf(json_node_type(BracketClose), token.from, token.to),
+        @lezer.Tree::leaf(json_node_type(BracketClose), token.from, token.to),
       )
       token.to
     }
@@ -613,16 +613,16 @@ pub fn JsonParser::parse_array(self : JsonParser) -> Tree? {
         start + 1
       }
   }
-  Some(Tree::node(json_node_type(Array), start, end, children))
+  Some(@lezer.Tree::node(json_node_type(Array), start, end, children))
 }
 
 ///|
 /// Parse a complete JSON document
-pub fn JsonParser::parse(self : JsonParser) -> Tree? {
+pub fn JsonParser::parse(self : JsonParser) -> @lezer.Tree? {
   let value = self.parse_value()
   match value {
     Some(v) =>
-      Some(Tree::node(json_node_type(JsonDocument), v.from(), v.to(), [v]))
+      Some(@lezer.Tree::node(json_node_type(JsonDocument), v.from(), v.to(), [v]))
     None => None
   }
 }
@@ -633,7 +633,7 @@ pub fn JsonParser::parse(self : JsonParser) -> Tree? {
 
 ///|
 /// Parse JSON string and return tree
-pub fn parse_json(input : String) -> Tree? {
+pub fn parse_json(input : String) -> @lezer.Tree? {
   let parser = JsonParser::new(input)
   parser.parse()
 }

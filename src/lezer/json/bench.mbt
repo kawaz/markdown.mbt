@@ -280,10 +280,10 @@ test "parse: complex 100 items" (b : @bench.T) {
 // Pre-parse trees for tree operation benchmarks
 
 ///|
-let tree_complex_50 : Tree? = parse_json(json_complex_50)
+let tree_complex_50 : @lezer.Tree? = parse_json(json_complex_50)
 
 ///|
-let tree_complex_100 : Tree? = parse_json(json_complex_100)
+let tree_complex_100 : @lezer.Tree? = parse_json(json_complex_100)
 
 ///|
 test "tree: iterate 50 items" (b : @bench.T) {
@@ -330,9 +330,9 @@ test "tree: resolve 100 positions" (b : @bench.T) {
 test "tree: cursor traversal 50 items" (b : @bench.T) {
   let tree = tree_complex_50.unwrap()
   b.bench(fn() {
-    let cursor = TreeCursor::new(tree)
+    let cursor = @lezer.TreeCursor::new(tree)
     let mut count = 0
-    fn traverse(c : TreeCursor) -> Int {
+    fn traverse(c : @lezer.TreeCursor) -> Int {
       let mut n = 1
       if c.first_child() {
         n += traverse(c)
@@ -391,18 +391,18 @@ test "highlight: complex 100 items" (b : @bench.T) {
 // Pre-generate highlight tokens for HTML benchmarks
 
 ///|
-let tokens_simple : Array[HighlightToken] = highlight_json(json_simple)
+let tokens_simple : Array[@lezer.HighlightToken] = highlight_json(json_simple)
 
 ///|
-let tokens_object_50 : Array[HighlightToken] = highlight_json(json_object_50)
+let tokens_object_50 : Array[@lezer.HighlightToken] = highlight_json(json_object_50)
 
 ///|
-let tokens_complex_50 : Array[HighlightToken] = highlight_json(json_complex_50)
+let tokens_complex_50 : Array[@lezer.HighlightToken] = highlight_json(json_complex_50)
 
 ///|
 test "html: simple object" (b : @bench.T) {
   b.bench(fn() {
-    let result = tokens_to_html(json_simple, tokens_simple)
+    let result = @lezer.tokens_to_html(json_simple, tokens_simple)
     b.keep(result)
   })
 }
@@ -410,7 +410,7 @@ test "html: simple object" (b : @bench.T) {
 ///|
 test "html: object 50 properties" (b : @bench.T) {
   b.bench(fn() {
-    let result = tokens_to_html(json_object_50, tokens_object_50)
+    let result = @lezer.tokens_to_html(json_object_50, tokens_object_50)
     b.keep(result)
   })
 }
@@ -418,7 +418,7 @@ test "html: object 50 properties" (b : @bench.T) {
 ///|
 test "html: complex 50 items" (b : @bench.T) {
   b.bench(fn() {
-    let result = tokens_to_html(json_complex_50, tokens_complex_50)
+    let result = @lezer.tokens_to_html(json_complex_50, tokens_complex_50)
     b.keep(result)
   })
 }
@@ -465,9 +465,9 @@ test "e2e: complex 100 items" (b : @bench.T) {
 
 ///|
 test "treebuffer: push 100 leaves" (b : @bench.T) {
-  let types = [NodeType::new(1, "A"), NodeType::new(2, "B")]
+  let types = [@lezer.NodeType::new(1, "A"), @lezer.NodeType::new(2, "B")]
   b.bench(fn() {
-    let buffer = TreeBuffer::new(types)
+    let buffer = @lezer.TreeBuffer::new(types)
     for i = 0; i < 100; i = i + 1 {
       buffer.push_leaf((i % 2) + 1, i * 10, (i + 1) * 10)
     }
@@ -477,9 +477,9 @@ test "treebuffer: push 100 leaves" (b : @bench.T) {
 
 ///|
 test "treebuffer: push 1000 leaves" (b : @bench.T) {
-  let types = [NodeType::new(1, "A"), NodeType::new(2, "B")]
+  let types = [@lezer.NodeType::new(1, "A"), @lezer.NodeType::new(2, "B")]
   b.bench(fn() {
-    let buffer = TreeBuffer::new(types)
+    let buffer = @lezer.TreeBuffer::new(types)
     for i = 0; i < 1000; i = i + 1 {
       buffer.push_leaf((i % 2) + 1, i * 10, (i + 1) * 10)
     }
@@ -489,8 +489,8 @@ test "treebuffer: push 1000 leaves" (b : @bench.T) {
 
 ///|
 test "treebuffer: lookup 100x" (b : @bench.T) {
-  let types = [NodeType::new(1, "A"), NodeType::new(2, "B")]
-  let buffer = TreeBuffer::new(types)
+  let types = [@lezer.NodeType::new(1, "A"), @lezer.NodeType::new(2, "B")]
+  let buffer = @lezer.TreeBuffer::new(types)
   for i = 0; i < 100; i = i + 1 {
     buffer.push_leaf((i % 2) + 1, i * 10, (i + 1) * 10)
   }
