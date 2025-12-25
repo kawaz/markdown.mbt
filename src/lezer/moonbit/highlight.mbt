@@ -14,6 +14,9 @@ pub fn mbt_highlighter() -> @lezer.Highlighter {
 
   // Literals
   h.add_rule("String", String)
+  h.add_rule("StringHead", String)
+  h.add_rule("StringMiddle", String)
+  h.add_rule("StringTail", String)
   h.add_rule("Char", String)
   h.add_rule("Byte", String)
   h.add_rule("ByteString", String)
@@ -63,6 +66,9 @@ fn token_type_name(t : MbtTokenType) -> String {
   match t {
     Keyword => "Keyword"
     String => "String"
+    StringHead => "StringHead"
+    StringMiddle => "StringMiddle"
+    StringTail => "StringTail"
     Char => "Char"
     Byte => "Byte"
     ByteString => "ByteString"

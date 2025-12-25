@@ -379,3 +379,82 @@ test "MbtTokenizer tokenizes numeric separator in binary" {
   assert_eq(tokens.length(), 1)
   assert_eq(tokens[0].token_type, Number)
 }
+
+// =============================================================================
+// String Interpolation Tests
+// =============================================================================
+
+test "MbtTokenizer tokenizes simple string without interpolation" {
+  let tokenizer = MbtTokenizer::new("\"hello world\"")
+  let tokens = tokenizer.tokenize_all()
+
+  assert_eq(tokens.length(), 1)
+  assert_eq(tokens[0].token_type, String)
+}
+
+test "MbtTokenizer tokenizes string with single interpolation" {
+  let tokenizer = MbtTokenizer::new("\"hello \\{name}!\"")
+  let tokens = tokenizer.tokenize_all()
+
+  // "hello \{ , name, }!"
+  assert_eq(tokens.length(), 3)
+  assert_eq(tokens[0].token_type, StringHead)   // "hello \{
+  assert_eq(tokens[1].token_type, Identifier)   // name
+  assert_eq(tokens[2].token_type, StringTail)   // }!"
+}
+
+test "MbtTokenizer tokenizes string with multiple interpolations" {
+  let tokenizer = MbtTokenizer::new("\"\\{a} + \\{b} = \\{c}\"")
+  let tokens = tokenizer.tokenize_all()
+
+  // "\{ , a, } + \{ , b, } = \{ , c, }"
+  assert_eq(tokens.length(), 7)
+  assert_eq(tokens[0].token_type, StringHead)   // "\{
+  assert_eq(tokens[1].token_type, Identifier)   // a
+  assert_eq(tokens[2].token_type, StringMiddle) // } + \{
+  assert_eq(tokens[3].token_type, Identifier)   // b
+  assert_eq(tokens[4].token_type, StringMiddle) // } = \{
+  assert_eq(tokens[5].token_type, Identifier)   // c
+  assert_eq(tokens[6].token_type, StringTail)   // }"
+}
+
+test "MbtTokenizer tokenizes interpolation with expression" {
+  let tokenizer = MbtTokenizer::new("\"result: \\{x + 1}\"")
+  let tokens = tokenizer.tokenize_all()
+
+  assert_eq(tokens[0].token_type, StringHead)   // "result: \{
+  assert_eq(tokens[1].token_type, Identifier)   // x
+  assert_eq(tokens[2].token_type, Operator)     // +
+  assert_eq(tokens[3].token_type, Number)       // 1
+  assert_eq(tokens[4].token_type, StringTail)   // }"
+}
+
+test "MbtTokenizer tokenizes interpolation with method call" {
+  let tokenizer = MbtTokenizer::new("\"value: \\{x.to_string()}\"")
+  let tokens = tokenizer.tokenize_all()
+
+  assert_eq(tokens[0].token_type, StringHead)   // "value: \{
+  assert_eq(tokens[1].token_type, Identifier)   // x
+  assert_eq(tokens[2].token_type, Dot)          // .
+  assert_eq(tokens[3].token_type, Identifier)   // to_string
+  assert_eq(tokens[4].token_type, ParenOpen)    // (
+  assert_eq(tokens[5].token_type, ParenClose)   // )
+  assert_eq(tokens[6].token_type, StringTail)   // }"
+}
+
+test "MbtTokenizer handles escape sequences in interpolated string" {
+  let tokenizer = MbtTokenizer::new("\"line1\\nline2: \\{x}\"")
+  let tokens = tokenizer.tokenize_all()
+
+  assert_eq(tokens[0].token_type, StringHead)   // "line1\nline2: \{
+  assert_eq(tokens[1].token_type, Identifier)   // x
+  assert_eq(tokens[2].token_type, StringTail)   // }"
+}
+
+test "highlight_moonbit handles string interpolation" {
+  let tokens = highlight_moonbit("println(\"Hello \\{name}!\")")
+
+  let tags = tokens.map(fn(t) { t.tag })
+  // Should have string tags for the interpolated parts
+  assert_true(tags.contains(@lezer.HighlightTag::String))
+}

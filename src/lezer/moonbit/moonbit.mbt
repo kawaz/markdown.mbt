@@ -12,7 +12,10 @@ pub(all) enum MbtTokenType {
   // Keywords
   Keyword      // fn, let, if, else, match, etc.
   // Literals
-  String       // "..."
+  String       // "..." (no interpolation)
+  StringHead   // "...\{  (start of interpolated string)
+  StringMiddle // }...\{  (middle part)
+  StringTail   // }..."   (end part)
   Char         // 'x'
   Byte         // b'x'
   ByteString   // b"..."
@@ -109,6 +112,17 @@ pub(all) struct MbtToken {
 } derive(Eq, Show)
 
 // =============================================================================
+// Context
+// =============================================================================
+
+///|
+/// Parser context for string interpolation
+enum MbtContext {
+  Normal           // Regular code
+  StringInterp     // Inside \{...} in string
+} derive(Eq, Show)
+
+// =============================================================================
 // Tokenizer
 // =============================================================================
 
@@ -119,6 +133,7 @@ pub(all) struct MbtTokenizer {
   priv chars : Array[Char]
   priv len : Int
   priv mut pos : Int
+  priv context_stack : Array[MbtContext]
 }
 
 ///|
@@ -129,7 +144,32 @@ pub fn MbtTokenizer::new(input : String) -> MbtTokenizer {
     input,
     chars,
     len: chars.length(),
-    pos: 0
+    pos: 0,
+    context_stack: [Normal]
+  }
+}
+
+///|
+/// Get current context
+fn MbtTokenizer::context(self : MbtTokenizer) -> MbtContext {
+  if self.context_stack.length() > 0 {
+    self.context_stack[self.context_stack.length() - 1]
+  } else {
+    Normal
+  }
+}
+
+///|
+/// Push context
+fn MbtTokenizer::push_context(self : MbtTokenizer, ctx : MbtContext) -> Unit {
+  self.context_stack.push(ctx)
+}
+
+///|
+/// Pop context
+fn MbtTokenizer::pop_context(self : MbtTokenizer) -> Unit {
+  if self.context_stack.length() > 1 {
+    let _ = self.context_stack.pop()
   }
 }
 
@@ -180,24 +220,60 @@ fn MbtTokenizer::skip_whitespace(self : MbtTokenizer) -> Unit {
 }
 
 ///|
-/// Read a string literal
+/// Read a string literal (with interpolation support)
 fn MbtTokenizer::read_string(self : MbtTokenizer) -> MbtToken {
   let start = self.pos
-  let quote = self.chars[self.pos]
-  self.pos += 1
+  self.pos += 1  // Skip opening "
 
   while self.pos < self.len {
     let c = self.chars[self.pos]
-    if c == quote {
+    if c == '"' {
       self.pos += 1
-      break
+      return { token_type: String, from: start, to: self.pos }
     } else if c == '\\' && self.pos + 1 < self.len {
-      self.pos += 2  // Skip escape sequence
+      let next = self.chars[self.pos + 1]
+      if next == '{' {
+        // String interpolation starts: "...\{
+        self.pos += 2  // Skip \{
+        self.push_context(StringInterp)
+        return { token_type: StringHead, from: start, to: self.pos }
+      } else {
+        self.pos += 2  // Skip escape sequence
+      }
     } else {
       self.pos += 1
     }
   }
   { token_type: String, from: start, to: self.pos }
+}
+
+///|
+/// Continue reading string after interpolation (after })
+fn MbtTokenizer::read_string_continuation(self : MbtTokenizer) -> MbtToken {
+  let start = self.pos
+  self.pos += 1  // Skip }
+  self.pop_context()
+
+  while self.pos < self.len {
+    let c = self.chars[self.pos]
+    if c == '"' {
+      self.pos += 1
+      return { token_type: StringTail, from: start, to: self.pos }
+    } else if c == '\\' && self.pos + 1 < self.len {
+      let next = self.chars[self.pos + 1]
+      if next == '{' {
+        // Another interpolation: }...\{
+        self.pos += 2
+        self.push_context(StringInterp)
+        return { token_type: StringMiddle, from: start, to: self.pos }
+      } else {
+        self.pos += 2
+      }
+    } else {
+      self.pos += 1
+    }
+  }
+  { token_type: StringTail, from: start, to: self.pos }
 }
 
 ///|
@@ -549,8 +625,13 @@ pub fn MbtTokenizer::next_token(self : MbtTokenizer) -> MbtToken? {
       { token_type: BraceOpen, from: start, to: self.pos }
     }
     '}' => {
-      self.pos += 1
-      { token_type: BraceClose, from: start, to: self.pos }
+      // Check if we're inside string interpolation
+      if self.context() == StringInterp {
+        self.read_string_continuation()
+      } else {
+        self.pos += 1
+        { token_type: BraceClose, from: start, to: self.pos }
+      }
     }
     '[' => {
       self.pos += 1
