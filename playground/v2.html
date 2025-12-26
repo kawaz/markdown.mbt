@@ -648,8 +648,38 @@ console.log("nested code");
     // Event Handlers
     // =========================================================================
 
-    editor.addEventListener('input', () => {
+    editor.addEventListener('input', (e) => {
       if (!isComposing) {
+        // Auto-close code fence when ``` is typed
+        if (e.inputType === 'insertText' && e.data === '`') {
+          const pos = editor.selectionStart;
+          const value = editor.value;
+
+          // Get current line up to cursor
+          const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+          const lineContent = value.slice(lineStart, pos);
+
+          // Check if we just completed a ``` at start of line
+          if (/^`{3,}$/.test(lineContent)) {
+            const fenceLen = lineContent.length;
+            const fence = lineContent;
+
+            // Count fences in rest of document
+            const afterCursor = value.slice(pos);
+            const fenceRegex = new RegExp(`^\`{${fenceLen},}`, 'gm');
+            const fencesAfter = afterCursor.match(fenceRegex);
+            const fenceCount = fencesAfter ? fencesAfter.length : 0;
+
+            // If even number of fences after, this fence is unclosed
+            if (fenceCount % 2 === 0) {
+              // Insert closing fence
+              const insertion = '\n' + fence;
+              editor.setRangeText(insertion, pos, pos, 'select');
+              editor.selectionStart = editor.selectionEnd = pos;
+            }
+          }
+        }
+
         updateHighlight();
         updateLineNumbers();
       }
