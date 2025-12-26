@@ -10,6 +10,40 @@ import type {
   AlignType,
 } from "mdast";
 import type { Position } from "unist";
+// @ts-ignore - no type declarations for lezer_api.js
+import { highlight } from "../js/lezer_api.js";
+
+// Language alias mapping
+const langMap: Record<string, string> = {
+  js: "typescript",
+  javascript: "typescript",
+  ts: "typescript",
+  tsx: "typescript",
+  jsx: "typescript",
+  mbt: "moonbit",
+  md: "markdown",
+  markdown: "markdown",
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  rs: "rust",
+};
+
+const supportedLangs = ["typescript", "moonbit", "json", "html", "css", "bash", "rust"];
+
+// Highlight code using lezer
+function highlightCode(code: string, lang: string): string | null {
+  const mappedLang = langMap[lang] || lang;
+  if (!supportedLangs.includes(mappedLang)) {
+    return null;
+  }
+  try {
+    return highlight(code, mappedLang);
+  } catch (e) {
+    console.error("Code highlight error:", e);
+    return null;
+  }
+}
 
 // Helper to get position offset for data-span
 function getSpan(node: { position?: Position | undefined }): string {
@@ -39,6 +73,20 @@ export function renderBlock(block: RootContent, key?: string | number): Componen
 
     case "code": {
       const lang = block.lang ?? "";
+      const highlighted = lang ? highlightCode(block.value, lang) : null;
+
+      if (highlighted) {
+        // Use highlighted HTML from lezer (shiki format)
+        return (
+          <div
+            key={key}
+            data-span={getSpan(block)}
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+          />
+        );
+      }
+
+      // Fallback for unsupported languages
       return (
         <pre key={key} data-span={getSpan(block)}>
           <code class={lang ? `language-${lang}` : undefined}>{block.value}</code>
