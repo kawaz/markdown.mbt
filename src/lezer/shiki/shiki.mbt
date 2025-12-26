@@ -367,3 +367,24 @@ pub fn highlight_json_shiki(source : String, theme : ShikiTheme) -> String {
   let tokens = @json.highlight_json(source)
   tokens_to_shiki_html(source, tokens, theme)
 }
+
+///|
+/// Highlight HTML to Shiki-compatible HTML
+pub fn highlight_html_shiki(source : String, theme : ShikiTheme) -> String {
+  let tokens = @html.highlight_html(source)
+  tokens_to_shiki_html(source, tokens, theme)
+}
+
+///|
+/// Highlight CSS to Shiki-compatible HTML
+pub fn highlight_css_shiki(source : String, theme : ShikiTheme) -> String {
+  let tokens = @css.highlight_css(source)
+  tokens_to_shiki_html(source, tokens, theme)
+}
+
+///|
+/// Highlight Bash to Shiki-compatible HTML
+pub fn highlight_bash_shiki(source : String, theme : ShikiTheme) -> String {
+  let tokens = @bash.highlight_bash(source)
+  tokens_to_shiki_html(source, tokens, theme)
+}

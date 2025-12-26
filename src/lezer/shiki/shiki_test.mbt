@@ -357,6 +357,248 @@ test "shiki/json: boolean and null" {
 }
 
 // =============================================================================
+// HTML-specific Tests
+// =============================================================================
+
+test "shiki/html: simple div" {
+  let source = "<div>Hello</div>"
+  let html = highlight_html_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+  assert_true!(html.contains("<span class=\"line\">"))
+}
+
+test "shiki/html: with attributes" {
+  let source = "<div class=\"container\" id=\"main\">Content</div>"
+  let html = highlight_html_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/html: self-closing tag" {
+  let source = "<img src=\"image.png\" alt=\"An image\" />"
+  let html = highlight_html_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/html: nested tags" {
+  let source =
+    #|<html>
+    #|  <head>
+    #|    <title>Test</title>
+    #|  </head>
+    #|  <body>
+    #|    <h1>Hello</h1>
+    #|  </body>
+    #|</html>
+  let html = highlight_html_shiki(source, github_dark())
+
+  let line_count = count_occurrences(html, "<span class=\"line\">")
+  assert_true!(line_count >= 8)
+}
+
+test "shiki/html: comment" {
+  let source = "<!-- This is a comment -->"
+  let html = highlight_html_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/html: doctype" {
+  let source = "<!DOCTYPE html>"
+  let html = highlight_html_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/html: escapes angle brackets" {
+  let source = "<div>"
+  let html = highlight_html_shiki(source, github_dark())
+
+  // Source < and > should be escaped in output
+  assert_true!(html.contains("&lt;"))
+  assert_true!(html.contains("&gt;"))
+}
+
+test "shiki/html: form with inputs" {
+  let source =
+    #|<form action="/submit" method="post">
+    #|  <input type="text" name="username" required>
+    #|  <button type="submit">Submit</button>
+    #|</form>
+  let html = highlight_html_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+// =============================================================================
+// CSS-specific Tests
+// =============================================================================
+
+test "shiki/css: simple rule" {
+  let source = ".container { color: red; }"
+  let html = highlight_css_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+  assert_true!(html.contains("<span class=\"line\">"))
+}
+
+test "shiki/css: multiple properties" {
+  let source =
+    #|.box {
+    #|  width: 100px;
+    #|  height: 50px;
+    #|  background-color: #f0f0f0;
+    #|}
+  let html = highlight_css_shiki(source, github_dark())
+
+  let line_count = count_occurrences(html, "<span class=\"line\">")
+  assert_true!(line_count >= 5)
+}
+
+test "shiki/css: selectors" {
+  let source = "div.container > p:first-child::before {}"
+  let html = highlight_css_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/css: media query" {
+  let source =
+    #|@media (max-width: 768px) {
+    #|  .container {
+    #|    width: 100%;
+    #|  }
+    #|}
+  let html = highlight_css_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/css: keyframes" {
+  let source =
+    #|@keyframes fade {
+    #|  from { opacity: 0; }
+    #|  to { opacity: 1; }
+    #|}
+  let html = highlight_css_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/css: color values" {
+  let source = ".foo { color: #ff0000; background: rgb(255, 255, 255); }"
+  let html = highlight_css_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/css: url value" {
+  let source = ".bg { background-image: url('image.png'); }"
+  let html = highlight_css_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/css: comment" {
+  let source = "/* This is a CSS comment */ .foo {}"
+  let html = highlight_css_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+// =============================================================================
+// Bash-specific Tests
+// =============================================================================
+
+test "shiki/bash: simple command" {
+  let source = "echo hello world"
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+  assert_true!(html.contains("<span class=\"line\">"))
+}
+
+test "shiki/bash: command with pipe" {
+  let source = "cat file.txt | grep pattern | wc -l"
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/bash: script with shebang" {
+  let source =
+    #|#!/bin/bash
+    #|echo "Hello World"
+    #|exit 0
+  let html = highlight_bash_shiki(source, github_dark())
+
+  let line_count = count_occurrences(html, "<span class=\"line\">")
+  assert_true!(line_count >= 3)
+}
+
+test "shiki/bash: if statement" {
+  let source =
+    #|if [ -f file.txt ]; then
+    #|  echo "File exists"
+    #|else
+    #|  echo "File not found"
+    #|fi
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/bash: for loop" {
+  let source =
+    #|for i in 1 2 3; do
+    #|  echo $i
+    #|done
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/bash: variables" {
+  let source = "NAME=\"John\"\necho $NAME\necho ${HOME}"
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/bash: command substitution" {
+  let source = "DATE=$(date +%Y-%m-%d)\necho \"Today is $DATE\""
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/bash: redirect and background" {
+  let source = "command > output.txt 2>&1 &"
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/bash: function definition" {
+  let source =
+    #|function greet() {
+    #|  echo "Hello, $1!"
+    #|}
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+test "shiki/bash: comment" {
+  let source = "# This is a comment\necho test  # inline comment"
+  let html = highlight_bash_shiki(source, github_dark())
+
+  assert_true!(html.contains("<pre class=\"shiki"))
+}
+
+// =============================================================================
 // Edge Cases
 // =============================================================================
 
