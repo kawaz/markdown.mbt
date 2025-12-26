@@ -123,20 +123,132 @@
     .editor {
       border-right: 1px solid var(--border-color);
       background: var(--bg-primary);
+      padding: 0;
+      overflow: hidden;
     }
 
-    textarea {
-      width: 100%;
+    /* Syntax Highlight Editor Styles */
+    .syntax-editor-container {
+      display: flex;
       height: 100%;
-      border: none;
-      resize: none;
+      background: var(--bg-primary);
+    }
+
+    .line-numbers {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      padding: 16px 0;
+      text-align: right;
+      user-select: none;
       font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.5;
+      min-width: 50px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .line-numbers .line-number {
+      padding: 0 12px 0 8px;
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: auto;
+    }
+
+    .editor-textarea,
+    .editor-highlight {
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 16px;
+      margin: 0;
+      border: none;
+      white-space: pre;
+      word-wrap: normal;
+      overflow-wrap: normal;
+      tab-size: 2;
+    }
+
+    .editor-textarea {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: transparent;
+      caret-color: var(--text-primary);
+      resize: none;
       outline: none;
-      background: var(--bg-primary);
+      z-index: 2;
+    }
+
+    .editor-textarea::selection {
+      background: rgba(56, 139, 253, 0.3);
+    }
+
+    .editor-highlight {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      min-height: 100%;
+      pointer-events: none;
+      z-index: 1;
       color: var(--text-primary);
     }
+
+    /* IME composition state */
+    .editor-wrapper.composing .editor-textarea {
+      color: var(--text-primary);
+    }
+
+    .editor-wrapper.composing .editor-highlight {
+      opacity: 0.3;
+    }
+
+    /* Markdown syntax colors - Light theme */
+    .md-heading { color: #d73a49; font-weight: bold; }
+    .md-heading-marker { color: #d73a49; }
+    .md-bold { color: #d73a49; font-weight: bold; }
+    .md-italic { color: #005cc5; font-style: italic; }
+    .md-bold-italic { color: #d73a49; font-weight: bold; font-style: italic; }
+    .md-strikethrough { color: var(--text-secondary); text-decoration: line-through; }
+    .md-code { color: #22863a; background: rgba(27, 31, 35, 0.05); border-radius: 3px; }
+    .md-code-marker { color: #6a737d; }
+    .md-fence { color: #6a737d; }
+    .md-fence-lang { color: #22863a; }
+    .md-link-text { color: #0366d6; }
+    .md-link-url { color: #6a737d; }
+    .md-link-bracket { color: #6a737d; }
+    .md-image { color: #0366d6; }
+    .md-list-marker { color: #d73a49; }
+    .md-blockquote { color: #6a737d; }
+    .md-hr { color: #6a737d; }
+    .md-html { color: #6a737d; }
+    .md-escape { color: #6a737d; }
+
+    /* Markdown syntax colors - Dark theme */
+    [data-theme="dark"] .md-heading { color: #ff7b72; }
+    [data-theme="dark"] .md-heading-marker { color: #ff7b72; }
+    [data-theme="dark"] .md-bold { color: #ff7b72; }
+    [data-theme="dark"] .md-italic { color: #a5d6ff; }
+    [data-theme="dark"] .md-bold-italic { color: #ff7b72; }
+    [data-theme="dark"] .md-code { color: #7ee787; background: rgba(110, 118, 129, 0.2); }
+    [data-theme="dark"] .md-code-marker { color: #8b949e; }
+    [data-theme="dark"] .md-fence { color: #8b949e; }
+    [data-theme="dark"] .md-fence-lang { color: #7ee787; }
+    [data-theme="dark"] .md-link-text { color: #58a6ff; }
+    [data-theme="dark"] .md-link-url { color: #8b949e; }
+    [data-theme="dark"] .md-link-bracket { color: #8b949e; }
+    [data-theme="dark"] .md-image { color: #58a6ff; }
+    [data-theme="dark"] .md-list-marker { color: #ff7b72; }
+    [data-theme="dark"] .md-blockquote { color: #8b949e; }
+    [data-theme="dark"] .md-hr { color: #484f58; }
+    [data-theme="dark"] .md-html { color: #8b949e; }
+    [data-theme="dark"] .md-escape { color: #8b949e; }
 
     .preview {
       background: var(--bg-secondary);

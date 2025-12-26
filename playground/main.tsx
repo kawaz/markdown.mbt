@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "preact/hooks";
 import { parse } from "../js/api.js";
 import type { Root } from "mdast";
 import { MarkdownRenderer } from "./ast-renderer";
+import { SyntaxHighlightEditor } from "./SyntaxHighlightEditor";
 
 const STORAGE_KEY = "markdown-editor-content";
 const IDB_NAME = "markdown-editor";
@@ -144,7 +145,6 @@ function App() {
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
 
   const previewRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<HTMLTextAreaElement>(null);
   const debouncedSource = useDebounce(source, DEBOUNCE_DELAY);
 
   // Load initial content from localStorage or IndexedDB
@@ -233,27 +233,13 @@ function App() {
     }
   }, [cursorPosition, ast]);
 
-  const handleInput = useCallback((e: Event) => {
-    const target = e.target as HTMLTextAreaElement;
-    const newSource = target.value;
+  const handleChange = useCallback((newSource: string) => {
     setSource(newSource);
     setAst(parse(newSource));
-    setCursorPosition(target.selectionStart);
   }, []);
 
-  const handleSelect = useCallback((e: Event) => {
-    const target = e.target as HTMLTextAreaElement;
-    setCursorPosition(target.selectionStart);
-  }, []);
-
-  const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    const target = e.target as HTMLTextAreaElement;
-    setCursorPosition(target.selectionStart);
-  }, []);
-
-  const handleClick = useCallback((e: MouseEvent) => {
-    const target = e.target as HTMLTextAreaElement;
-    setCursorPosition(target.selectionStart);
+  const handleCursorChange = useCallback((position: number) => {
+    setCursorPosition(position);
   }, []);
 
   return (
@@ -282,13 +268,10 @@ function App() {
       </header>
       <div class="container">
         <div class="editor">
-          <textarea
-            ref={editorRef}
+          <SyntaxHighlightEditor
             value={source}
-            onInput={handleInput}
-            onSelect={handleSelect}
-            onKeyUp={handleKeyUp}
-            onClick={handleClick}
+            onChange={handleChange}
+            onCursorChange={handleCursorChange}
           />
         </div>
         <div class="preview" ref={previewRef}>
