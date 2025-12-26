@@ -12,7 +12,7 @@ const IDB_KEY = "current";
 
 // localStorage for UI state (sync access for initial render)
 const UI_STATE_KEY = "markdown-editor-ui";
-const DEBOUNCE_DELAY = 500;
+const DEBOUNCE_DELAY = 300;
 
 const initialMarkdown = `# Hello
 
@@ -216,6 +216,8 @@ function App() {
   const hasModified = useRef(false);
   // Track last synced timestamp for tab sync
   const lastSyncedTimestamp = useRef(0);
+  // Track if currently saving (to avoid sync during save)
+  const isSaving = useRef(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const debouncedSource = useDebounce(source, DEBOUNCE_DELAY);
@@ -278,8 +280,10 @@ function App() {
   // Handle visibility change for tab sync
   useEffect(() => {
     async function handleVisibilityChange() {
+      // Only sync when becoming visible
       if (document.visibilityState !== "visible") return;
-      if (!isInitialized) return;
+      // Don't sync while saving or if there are unsaved local changes
+      if (isSaving.current || hasModified.current) return;
 
       try {
         const idbData = await loadFromIDB();
@@ -290,7 +294,6 @@ function App() {
           setSource(idbData.content);
           setAst(parse(idbData.content));
           lastSyncedTimestamp.current = idbData.timestamp;
-          hasModified.current = false; // Reset since we just synced
         }
       } catch (e) {
         console.error("Failed to sync from IndexedDB:", e);
@@ -299,22 +302,26 @@ function App() {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isInitialized]);
+  }, []);
 
   // Save content to IndexedDB with debounce
   useEffect(() => {
     if (!isInitialized) return;
     if (!hasModified.current) return; // Don't save on initial load
 
+    isSaving.current = true;
     setSaveStatus("saving");
     saveToIDB(debouncedSource)
       .then((timestamp) => {
         lastSyncedTimestamp.current = timestamp;
+        hasModified.current = false;
+        isSaving.current = false;
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), 1000);
       })
       .catch((e) => {
         console.error("Failed to save to IndexedDB:", e);
+        isSaving.current = false;
         setSaveStatus("idle");
       });
   }, [debouncedSource, isInitialized]);
