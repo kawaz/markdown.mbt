@@ -21,6 +21,10 @@ pub fn mbt_highlighter() -> @lezer.Highlighter {
   h.add_rule("Byte", String)
   h.add_rule("ByteString", String)
   h.add_rule("RawString", String)
+  h.add_rule("InterpString", String)
+  h.add_rule("InterpStringHead", String)
+  h.add_rule("InterpStringMiddle", String)
+  h.add_rule("InterpStringTail", String)
   h.add_rule("Number", Number)
   h.add_rule("True", Bool)
   h.add_rule("False", Bool)
@@ -73,6 +77,10 @@ fn token_type_name(t : MbtTokenType) -> String {
     Byte => "Byte"
     ByteString => "ByteString"
     RawString => "RawString"
+    InterpString => "InterpString"
+    InterpStringHead => "InterpStringHead"
+    InterpStringMiddle => "InterpStringMiddle"
+    InterpStringTail => "InterpStringTail"
     Number => "Number"
     True => "True"
     False => "False"

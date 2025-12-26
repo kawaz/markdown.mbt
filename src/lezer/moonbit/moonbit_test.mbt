@@ -458,3 +458,93 @@ test "highlight_moonbit handles string interpolation" {
   // Should have string tags for the interpolated parts
   assert_true(tags.contains(@lezer.HighlightTag::String))
 }
+
+// =============================================================================
+// Multi-line Raw String Tests
+// =============================================================================
+
+test "MbtTokenizer tokenizes multi-line raw strings" {
+  let code =
+    #|#|line one
+    #|#|line two
+    #|#|line three
+  let tokenizer = MbtTokenizer::new(code)
+  let tokens = tokenizer.tokenize_all()
+
+  // Each #| line should be a separate RawString token
+  let raw_count = tokens.iter().filter(fn(t) { t.token_type == RawString }).count()
+  assert_eq(raw_count, 3)
+}
+
+test "MbtTokenizer handles raw string in real code" {
+  let code =
+    #|let s =
+    #|  #|Hello
+    #|  #|World
+  let tokenizer = MbtTokenizer::new(code)
+  let tokens = tokenizer.tokenize_all()
+
+  // Should have: let, s, =, #|Hello, #|World
+  let has_let = tokens.iter().any(fn(t) { t.token_type == Keyword })
+  let has_raw = tokens.iter().any(fn(t) { t.token_type == RawString })
+  assert_true(has_let)
+  assert_true(has_raw)
+}
+
+// =============================================================================
+// Interpolated Multi-line String Tests ($|)
+// =============================================================================
+
+test "MbtTokenizer tokenizes simple $| string" {
+  let tokenizer = MbtTokenizer::new("$|hello world")
+  let tokens = tokenizer.tokenize_all()
+
+  assert_eq(tokens.length(), 1)
+  assert_eq(tokens[0].token_type, InterpString)
+}
+
+test "MbtTokenizer tokenizes $| with interpolation" {
+  let tokenizer = MbtTokenizer::new("$|hello \\{name}!")
+  let tokens = tokenizer.tokenize_all()
+
+  // $|hello \{ , name, }!
+  assert_eq(tokens.length(), 3)
+  assert_eq(tokens[0].token_type, InterpStringHead)   // $|hello \{
+  assert_eq(tokens[1].token_type, Identifier)          // name
+  assert_eq(tokens[2].token_type, InterpStringTail)   // }!
+}
+
+test "MbtTokenizer tokenizes $| with multiple interpolations" {
+  let tokenizer = MbtTokenizer::new("$|\\{a} + \\{b}")
+  let tokens = tokenizer.tokenize_all()
+
+  assert_eq(tokens.length(), 5)
+  assert_eq(tokens[0].token_type, InterpStringHead)    // $|\{
+  assert_eq(tokens[1].token_type, Identifier)           // a
+  assert_eq(tokens[2].token_type, InterpStringMiddle)  // } + \{
+  assert_eq(tokens[3].token_type, Identifier)           // b
+  assert_eq(tokens[4].token_type, InterpStringTail)    // }
+}
+
+test "MbtTokenizer tokenizes multiple $| lines" {
+  let code =
+    #|$|line one
+    #|$|line two \{x}
+  let tokenizer = MbtTokenizer::new(code)
+  let tokens = tokenizer.tokenize_all()
+
+  let interp_count = tokens.iter().filter(fn(t) {
+    match t.token_type {
+      InterpString | InterpStringHead | InterpStringMiddle | InterpStringTail => true
+      _ => false
+    }
+  }).count()
+  assert_true(interp_count >= 2)
+}
+
+test "highlight_moonbit handles $| strings" {
+  let tokens = highlight_moonbit("$|value: \\{x}")
+
+  let tags = tokens.map(fn(t) { t.tag })
+  assert_true(tags.contains(@lezer.HighlightTag::String))
+}

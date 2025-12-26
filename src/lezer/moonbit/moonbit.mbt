@@ -51,7 +51,11 @@ pub(all) enum MbtTokenType {
   LineComment  // // ...
   DocComment   // ///| ...
   // Raw string
-  RawString    // #|...
+  RawString        // #|... (no interpolation)
+  InterpString     // $|... (simple, no interpolation in this line)
+  InterpStringHead // $|...\{ (start of interpolation)
+  InterpStringMiddle // }...\{ (middle of interpolation)
+  InterpStringTail   // }...  (end of interpolation)
   // Error
   Error
 } derive(Eq, Show)
@@ -118,8 +122,9 @@ pub(all) struct MbtToken {
 ///|
 /// Parser context for string interpolation
 enum MbtContext {
-  Normal           // Regular code
-  StringInterp     // Inside \{...} in string
+  Normal               // Regular code
+  StringInterp         // Inside \{...} in "..." string
+  InterpStringInterp   // Inside \{...} in $|... string
 } derive(Eq, Show)
 
 // =============================================================================
@@ -512,6 +517,45 @@ fn MbtTokenizer::read_raw_string(self : MbtTokenizer) -> MbtToken {
 }
 
 ///|
+/// Read an interpolated string line ($|... with \{} support)
+fn MbtTokenizer::read_interp_string(self : MbtTokenizer) -> MbtToken {
+  let start = self.pos
+  self.pos += 2  // Skip $|
+
+  while self.pos < self.len && self.chars[self.pos] != '\n' {
+    let c = self.chars[self.pos]
+    if c == '\\' && self.pos + 1 < self.len && self.chars[self.pos + 1] == '{' {
+      // Found \{ - interpolation starts
+      self.pos += 2  // Skip \{
+      self.push_context(InterpStringInterp)
+      return { token_type: InterpStringHead, from: start, to: self.pos }
+    }
+    self.pos += 1
+  }
+  { token_type: InterpString, from: start, to: self.pos }
+}
+
+///|
+/// Continue reading interpolated string after } in $|... context
+fn MbtTokenizer::read_interp_string_continuation(self : MbtTokenizer) -> MbtToken {
+  let start = self.pos
+  self.pos += 1  // Skip }
+  self.pop_context()
+
+  while self.pos < self.len && self.chars[self.pos] != '\n' {
+    let c = self.chars[self.pos]
+    if c == '\\' && self.pos + 1 < self.len && self.chars[self.pos + 1] == '{' {
+      // Another interpolation
+      self.pos += 2
+      self.push_context(InterpStringInterp)
+      return { token_type: InterpStringMiddle, from: start, to: self.pos }
+    }
+    self.pos += 1
+  }
+  { token_type: InterpStringTail, from: start, to: self.pos }
+}
+
+///|
 /// Read an operator
 fn MbtTokenizer::read_operator(self : MbtTokenizer) -> MbtToken {
   let start = self.pos
@@ -619,6 +663,16 @@ pub fn MbtTokenizer::next_token(self : MbtTokenizer) -> MbtToken? {
       }
     }
 
+    // Interpolated multiline string ($|...)
+    '$' => {
+      if self.pos + 1 < self.len && self.chars[self.pos + 1] == '|' {
+        self.read_interp_string()
+      } else {
+        self.pos += 1
+        { token_type: Operator, from: start, to: self.pos }
+      }
+    }
+
     // Braces
     '{' => {
       self.pos += 1
@@ -626,8 +680,11 @@ pub fn MbtTokenizer::next_token(self : MbtTokenizer) -> MbtToken? {
     }
     '}' => {
       // Check if we're inside string interpolation
-      if self.context() == StringInterp {
+      let ctx = self.context()
+      if ctx == StringInterp {
         self.read_string_continuation()
+      } else if ctx == InterpStringInterp {
+        self.read_interp_string_continuation()
       } else {
         self.pos += 1
         { token_type: BraceClose, from: start, to: self.pos }
