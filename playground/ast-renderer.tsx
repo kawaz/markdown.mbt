@@ -12,6 +12,57 @@ import type { Position } from "unist";
 // @ts-ignore - no type declarations for lezer_api.js
 import { highlight } from "../js/lezer_api.js";
 
+// =============================================================================
+// SVG Sanitizer
+// =============================================================================
+
+// Event handler attribute patterns to remove
+const EVENT_HANDLER_PATTERN = /\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
+
+// Dangerous elements to remove entirely
+const DANGEROUS_ELEMENTS = /<script[^>]*>[\s\S]*?<\/script>/gi;
+
+// javascript: and data: URLs in attributes
+const DANGEROUS_URL_PATTERN = /\s+(href|xlink:href|src)\s*=\s*["']?\s*(javascript:|data:text\/html)/gi;
+
+/**
+ * Sanitize SVG content by removing event handlers, scripts, and dangerous URLs.
+ * This is a lightweight sanitizer for preview purposes.
+ */
+export function sanitizeSvg(svg: string): string {
+  return svg
+    // Remove <script> elements
+    .replace(DANGEROUS_ELEMENTS, "")
+    // Remove event handlers (onclick, onload, etc.)
+    .replace(EVENT_HANDLER_PATTERN, "")
+    // Remove dangerous URLs
+    .replace(DANGEROUS_URL_PATTERN, "");
+}
+
+// =============================================================================
+// Code Block Language Parser
+// =============================================================================
+
+/**
+ * Parse language string that may include a mode suffix.
+ * e.g., "svg:preview" -> { lang: "svg", mode: "preview" }
+ * e.g., "typescript" -> { lang: "typescript", mode: undefined }
+ */
+export function parseCodeBlockLang(langString: string): { lang: string; mode?: string } {
+  const colonIndex = langString.indexOf(":");
+  if (colonIndex === -1) {
+    return { lang: langString };
+  }
+  return {
+    lang: langString.slice(0, colonIndex),
+    mode: langString.slice(colonIndex + 1),
+  };
+}
+
+// =============================================================================
+// Renderer Types
+// =============================================================================
+
 // Callbacks for interactive preview (optional - works without callbacks for static rendering)
 export interface RendererCallbacks {
   // Task list checkbox toggle
@@ -23,8 +74,9 @@ export interface RendererCallbacks {
 }
 
 // Code block handler for custom rendering (e.g., SVG, mermaid, moonlight)
+// Return null to fall through to default syntax highlighting
 export interface CodeBlockHandler {
-  render: (code: string, span: string, key?: string | number) => JSX.Element;
+  render: (code: string, span: string, key?: string | number, mode?: string) => JSX.Element | null;
 }
 
 // Renderer options for customizing rendering behavior
@@ -71,6 +123,9 @@ const langMap: Record<string, string> = {
   shell: "bash",
   zsh: "bash",
   rs: "rust",
+  xml: "html",
+  svg: "html",
+  htm: "html",
 };
 
 const supportedLangs = ["typescript", "moonbit", "json", "html", "css", "bash", "rust"];
@@ -121,13 +176,18 @@ export function renderBlock(
     }
 
     case "code": {
-      const lang = block.lang ?? "";
+      const langString = block.lang ?? "";
+      const { lang, mode } = parseCodeBlockLang(langString);
       const span = getSpan(block);
 
-      // Check for custom handler first
+      // Check for custom handler first (supports both "svg" and "svg:preview")
+      // Handler can return null to fall through to default highlighting
       const handler = options?.codeBlockHandlers?.[lang];
       if (handler) {
-        return handler.render(block.value, span, key);
+        const result = handler.render(block.value, span, key, mode);
+        if (result !== null) {
+          return result;
+        }
       }
 
       const highlighted = lang ? highlightCode(block.value, lang) : null;

@@ -47,6 +47,7 @@ export function highlight(source, lang) {
     case "html":
     case "htm":
     case "xml":
+    case "svg":
       return highlight_html(source);
     case "css":
     case "scss":

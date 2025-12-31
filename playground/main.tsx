@@ -1,7 +1,7 @@
 import { render, createSignal, createEffect, createMemo, onMount, onCleanup, Show, batch } from "@luna_ui/luna";
 import { parse } from "../js/api.js";
 import type { Root } from "mdast";
-import { MarkdownRenderer, RawHtml, type RendererCallbacks, type RendererOptions } from "./ast-renderer";
+import { MarkdownRenderer, RawHtml, sanitizeSvg, type RendererCallbacks, type RendererOptions } from "./ast-renderer";
 import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "./SyntaxHighlightEditor";
 
 // IndexedDB for content (reliable async storage)
@@ -45,6 +45,18 @@ fn main() {
 - [Links](https://github.com/mizchi/markdown.mbt)
 - \`inline code\`
 - > Blockquotes
+
+## SVG Preview
+
+Edit the SVG below and see live preview:
+
+\`\`\`svg
+<svg width="200" height="100" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="80" height="80" fill="#4a90d9" rx="8"/>
+  <circle cx="150" cy="50" r="40" fill="#e74c3c"/>
+  <text x="100" y="95" text-anchor="middle" fill="#333" font-size="12">Edit me!</text>
+</svg>
+\`\`\`
 
 ## Interactive Task List
 
@@ -513,11 +525,17 @@ function App() {
   // Options for custom code block rendering
   const rendererOptions: RendererOptions = {
     codeBlockHandlers: {
-      // Render ```svg blocks as inline SVG
+      // Render ```svg or ```svg:preview blocks as inline SVG
+      // Mode: "preview" (default) = inline preview, "code" = syntax highlighted
       svg: {
-        render: (code, span, key) => (
-          <RawHtml key={key} data-span={span} html={code} />
-        ),
+        render: (code, span, key, mode) => {
+          // If mode is "code", fall through to default syntax highlighting
+          if (mode === "code") {
+            return null;
+          }
+          // Default: render as inline SVG (sanitized for safety)
+          return <RawHtml key={key} data-span={span} html={sanitizeSvg(code)} />;
+        },
       },
       // Future: moonlight-svg, mermaid, etc.
     },
