@@ -96,6 +96,11 @@ async function loadFromIDB(): Promise<{ content: string; timestamp: number } | n
   }
 }
 
+// Mobile detection
+function isMobile(): boolean {
+  return window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 // UI State helpers (localStorage for sync access)
 interface UIState {
   viewMode: "split" | "editor" | "preview";
@@ -104,20 +109,30 @@ interface UIState {
 }
 
 function loadUIState(): UIState {
+  const mobile = isMobile();
   try {
     const saved = localStorage.getItem(UI_STATE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      // On mobile, force editor-only mode if split was saved
+      const viewMode = mobile && parsed.viewMode === "split" ? "editor" : (parsed.viewMode || (mobile ? "editor" : "split"));
+      // On mobile, default to simple editor
+      const editorMode = parsed.editorMode || (mobile ? "simple" : "highlight");
       return {
-        viewMode: parsed.viewMode || "split",
-        editorMode: parsed.editorMode || "highlight",
+        viewMode,
+        editorMode,
         cursorPosition: parsed.cursorPosition || 0,
       };
     }
   } catch {
     // ignore parse errors
   }
-  return { viewMode: "split", editorMode: "highlight", cursorPosition: 0 };
+  // Default: mobile uses editor-only + simple, desktop uses split + highlight
+  return {
+    viewMode: mobile ? "editor" : "split",
+    editorMode: mobile ? "simple" : "highlight",
+    cursorPosition: 0,
+  };
 }
 
 function saveUIState(state: Partial<UIState>): void {
@@ -243,6 +258,7 @@ const GITHUB_ICON = `<svg viewBox="0 0 16 16" width="20" height="20" fill="curre
 function App() {
   // Load UI state synchronously for initial render
   const initialUIState = loadUIState();
+  const mobile = isMobile();
 
   const [source, setSource] = createSignal("");
   const [ast, setAst] = createSignal<Root | null>(null);
@@ -513,13 +529,15 @@ function App() {
           <header class="toolbar">
             <div class="toolbar-left">
               <div class="view-mode-buttons">
-                <button
-                  class={splitBtnClass}
-                  onClick={() => handleViewModeChange("split")}
-                  title="Split view (Ctrl+1)"
-                >
-                  <Icon svg={SPLIT_ICON} />
-                </button>
+                {!mobile && (
+                  <button
+                    class={splitBtnClass}
+                    onClick={() => handleViewModeChange("split")}
+                    title="Split view (Ctrl+1)"
+                  >
+                    <Icon svg={SPLIT_ICON} />
+                  </button>
+                )}
                 <button
                   class={editorBtnClass}
                   onClick={() => handleViewModeChange("editor")}
