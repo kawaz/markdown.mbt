@@ -217,16 +217,25 @@ function renderListItem(item: ListItem, key: number): JSX.Element {
   const isTask = item.checked != null;
 
   if (isTask) {
+    // Flatten children to avoid nested arrays which Luna doesn't handle well
+    const children: JSX.Element[] = [];
+    item.children.forEach((child, i) => {
+      if (child.type === "paragraph") {
+        // Inline the paragraph content for task items
+        child.children.forEach((inline, j) => {
+          const el = renderInline(inline, `${i}-${j}`);
+          if (el) children.push(el);
+        });
+      } else {
+        const el = renderBlock(child, i);
+        if (el) children.push(el);
+      }
+    });
+
     return (
       <li key={key} class="task-list-item" data-span={getSpan(item)}>
         <input type="checkbox" checked={item.checked ?? false} disabled />
-        {item.children.map((child, i) => {
-          if (child.type === "paragraph") {
-            // Inline the paragraph content for task items
-            return child.children.map((inline, j) => renderInline(inline, `${i}-${j}`));
-          }
-          return renderBlock(child, i);
-        })}
+        {children}
       </li>
     );
   }

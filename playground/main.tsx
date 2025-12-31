@@ -1,4 +1,4 @@
-import { render, createSignal, createEffect, onMount, onCleanup, Show, batch } from "@luna_ui/luna";
+import { render, createSignal, createEffect, createMemo, onMount, onCleanup, Show, batch } from "@luna_ui/luna";
 import { parse } from "../js/api.js";
 import type { Root } from "mdast";
 import { MarkdownRenderer } from "./ast-renderer";
@@ -156,6 +156,7 @@ type EditorMode = "highlight" | "simple";
 function SimpleEditor(props: {
   value: () => string;
   onChange: (value: string) => void;
+  onCursorChange?: (position: number) => void;
   ref?: (el: HTMLTextAreaElement) => void;
 }) {
   let textareaRef: HTMLTextAreaElement | null = null;
@@ -173,60 +174,69 @@ function SimpleEditor(props: {
     }
   });
 
+  const handleInput = (e: Event) => {
+    const target = e.target as HTMLTextAreaElement;
+    props.onChange(target.value);
+    props.onCursorChange?.(target.selectionStart);
+  };
+
+  const handleCursorUpdate = (e: Event) => {
+    const target = e.target as HTMLTextAreaElement;
+    props.onCursorChange?.(target.selectionStart);
+  };
+
   return (
     <textarea
       ref={setupTextarea}
       class="simple-editor"
-      onInput={(e) => props.onChange((e.target as HTMLTextAreaElement).value)}
+      onInput={handleInput}
+      onKeyUp={handleCursorUpdate}
+      onClick={handleCursorUpdate}
       spellcheck={false}
     />
   );
 }
 
-// SVG Icons for view modes
-const SplitIcon = () => (
-  <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
-    <rect x="1" y="2" width="8" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none" />
-    <rect x="11" y="2" width="8" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none" />
-  </svg>
-);
+// SVG Icons
+function Icon(props: { svg: string }) {
+  return <span dangerouslySetInnerHTML={{ __html: props.svg }} style={{ display: "flex", alignItems: "center" }} />;
+}
 
-const EditorIcon = () => (
-  <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
-    <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none" />
-    <line x1="5" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1.5" />
-    <line x1="5" y1="10" x2="12" y2="10" stroke="currentColor" stroke-width="1.5" />
-    <line x1="5" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" />
-  </svg>
-);
+const SPLIT_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
+  <rect x="1" y="2" width="8" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <rect x="11" y="2" width="8" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+</svg>`;
 
-const PreviewIcon = () => (
-  <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
-    <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none" />
-    <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5" fill="none" />
-    <path d="M4 10 Q7 5, 10 5 Q13 5, 16 10 Q13 15, 10 15 Q7 15, 4 10" stroke="currentColor" stroke-width="1.5" fill="none" />
-  </svg>
-);
+const EDITOR_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
+  <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <line x1="5" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1.5"/>
+  <line x1="5" y1="10" x2="12" y2="10" stroke="currentColor" stroke-width="1.5"/>
+  <line x1="5" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5"/>
+</svg>`;
 
-// Syntax highlight editor icon (colorful brackets)
-const HighlightIcon = () => (
-  <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
-    <text x="2" y="14" font-size="12" fill="#d73a49" font-family="monospace" font-weight="bold">&lt;</text>
-    <text x="8" y="14" font-size="12" fill="#22863a" font-family="monospace">/</text>
-    <text x="12" y="14" font-size="12" fill="#0366d6" font-family="monospace" font-weight="bold">&gt;</text>
-  </svg>
-);
+const PREVIEW_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
+  <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <path d="M4 10 Q7 5, 10 5 Q13 5, 16 10 Q13 15, 10 15 Q7 15, 4 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+</svg>`;
 
-// Simple textarea icon (plain text)
-const SimpleIcon = () => (
-  <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
-    <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none" />
-    <line x1="5" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1" opacity="0.5" />
-    <line x1="5" y1="9" x2="13" y2="9" stroke="currentColor" stroke-width="1" opacity="0.5" />
-    <line x1="5" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1" opacity="0.5" />
-    <line x1="5" y1="15" x2="10" y2="15" stroke="currentColor" stroke-width="1" opacity="0.5" />
-  </svg>
-);
+const HIGHLIGHT_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+  <text x="2" y="14" font-size="12" fill="#d73a49" font-family="monospace" font-weight="bold">&lt;</text>
+  <text x="8" y="14" font-size="12" fill="#22863a" font-family="monospace">/</text>
+  <text x="12" y="14" font-size="12" fill="#0366d6" font-family="monospace" font-weight="bold">&gt;</text>
+</svg>`;
+
+const SIMPLE_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
+  <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <line x1="5" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+  <line x1="5" y1="9" x2="13" y2="9" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+  <line x1="5" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+  <line x1="5" y1="15" x2="10" y2="15" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+</svg>`;
+
+const GITHUB_ICON = `<svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
+  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+</svg>`;
 
 
 
@@ -246,6 +256,15 @@ function App() {
   const [saveStatus, setSaveStatus] = createSignal<"saved" | "saving" | "idle">("idle");
   const [viewMode, setViewMode] = createSignal<ViewMode>(initialUIState.viewMode);
   const [editorMode, setEditorMode] = createSignal<EditorMode>(initialUIState.editorMode);
+
+  // Memoized class names for reactivity
+  const containerClass = createMemo(() => `container view-${viewMode()} editor-mode-${editorMode()}`);
+  const splitBtnClass = createMemo(() => `view-mode-btn ${viewMode() === "split" ? "active" : ""}`);
+  const editorBtnClass = createMemo(() => `view-mode-btn ${viewMode() === "editor" ? "active" : ""}`);
+  const previewBtnClass = createMemo(() => `view-mode-btn ${viewMode() === "preview" ? "active" : ""}`);
+  const highlightBtnClass = createMemo(() => `view-mode-btn ${editorMode() === "highlight" ? "active" : ""}`);
+  const simpleBtnClass = createMemo(() => `view-mode-btn ${editorMode() === "simple" ? "active" : ""}`);
+  const saveStatusClass = createMemo(() => `save-status ${saveStatus()}`);
 
   // Refs
   let editorRef: SyntaxHighlightEditorHandle | null = null;
@@ -288,8 +307,37 @@ function App() {
   };
 
   const handleEditorModeChange = (mode: EditorMode) => {
+    const currentMode = editorMode();
+    if (currentMode === mode) return;
+
+    // Get cursor position and scroll from current editor
+    let cursorPos = 0;
+    let scrollTop = 0;
+
+    if (currentMode === "highlight" && editorRef) {
+      cursorPos = editorRef.getCursorPosition();
+      scrollTop = editorRef.getScrollTop();
+    } else if (currentMode === "simple" && simpleEditorRef) {
+      cursorPos = simpleEditorRef.selectionStart;
+      scrollTop = simpleEditorRef.scrollTop;
+    }
+
     setEditorMode(mode);
     saveUIState({ editorMode: mode });
+
+    // Apply cursor position and scroll to new editor after mode switch
+    requestAnimationFrame(() => {
+      if (mode === "highlight" && editorRef) {
+        editorRef.setCursorPosition(cursorPos);
+        editorRef.setScrollTop(scrollTop);
+      } else if (mode === "simple" && simpleEditorRef) {
+        simpleEditorRef.setSelectionRange(cursorPos, cursorPos);
+        simpleEditorRef.scrollTop = scrollTop;
+        simpleEditorRef.focus();
+      }
+      // Update cursor position signal for preview sync
+      setCursorPosition(cursorPos);
+    });
   };
 
   // Keyboard shortcuts for view mode
@@ -328,13 +376,13 @@ function App() {
     }
 
     setSource(content);
-    // Initial AST - parsed immediately (debounce effect will also fire but that's ok)
-    setAst(parse(content));
     lastSyncedTimestamp = timestamp;
+    // Set initialized first so Show renders and refs are set
     setIsInitialized(true);
 
-    // Focus editor after initialization
+    // Parse AST after next frame to ensure previewRef is ready
     requestAnimationFrame(() => {
+      setAst(parse(content));
       editorRef?.focus();
     });
   });
@@ -386,32 +434,48 @@ function App() {
       });
   });
 
+  // Track last rendered AST version for scroll synchronization
+  let lastRenderedAst: Root | null = null;
+
   // Render preview when AST changes
   createEffect(() => {
     const currentAst = ast();
     if (!currentAst || !previewRef) return;
+
+    // Clear and re-render
     previewRef.innerHTML = "";
     render(previewRef, <MarkdownRenderer ast={currentAst} />);
+    lastRenderedAst = currentAst;
   });
 
-  // Sync preview scroll with cursor position
+  // Sync preview scroll with cursor position (debounced to avoid excessive scrolling)
+  let scrollTimer: number | undefined;
   createEffect(() => {
     const pos = cursorPosition();
     const currentAst = ast();
     if (!previewRef || !currentAst) return;
 
-    const blockIndex = findBlockAtPosition(currentAst, pos);
-    if (blockIndex === null) return;
+    // Debounce scroll updates to avoid jittery scrolling during fast typing
+    clearTimeout(scrollTimer);
+    scrollTimer = window.setTimeout(() => {
+      // Use requestAnimationFrame to ensure DOM is ready after render
+      requestAnimationFrame(() => {
+        if (!previewRef || !lastRenderedAst) return;
 
-    const block = currentAst.children[blockIndex]!;
-    const start = block.position?.start?.offset ?? 0;
-    const end = block.position?.end?.offset ?? 0;
-    const selector = `[data-span="${start}-${end}"]`;
-    const element = previewRef.querySelector(selector);
+        const blockIndex = findBlockAtPosition(lastRenderedAst, pos);
+        if (blockIndex === null) return;
 
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+        const block = lastRenderedAst.children[blockIndex]!;
+        const start = block.position?.start?.offset ?? 0;
+        const end = block.position?.end?.offset ?? 0;
+        const selector = `[data-span="${start}-${end}"]`;
+        const element = previewRef.querySelector(selector);
+
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    }, 150); // Small delay to let render complete first
   });
 
 
@@ -450,44 +514,44 @@ function App() {
             <div class="toolbar-left">
               <div class="view-mode-buttons">
                 <button
-                  class={`view-mode-btn ${viewMode() === "split" ? "active" : ""}`}
+                  class={splitBtnClass}
                   onClick={() => handleViewModeChange("split")}
                   title="Split view (Ctrl+1)"
                 >
-                  <SplitIcon />
+                  <Icon svg={SPLIT_ICON} />
                 </button>
                 <button
-                  class={`view-mode-btn ${viewMode() === "editor" ? "active" : ""}`}
+                  class={editorBtnClass}
                   onClick={() => handleViewModeChange("editor")}
                   title="Editor only (Ctrl+2)"
                 >
-                  <EditorIcon />
+                  <Icon svg={EDITOR_ICON} />
                 </button>
                 <button
-                  class={`view-mode-btn ${viewMode() === "preview" ? "active" : ""}`}
+                  class={previewBtnClass}
                   onClick={() => handleViewModeChange("preview")}
                   title="Preview only (Ctrl+3)"
                 >
-                  <PreviewIcon />
+                  <Icon svg={PREVIEW_ICON} />
                 </button>
               </div>
               <div class="editor-mode-buttons">
                 <button
-                  class={`view-mode-btn ${editorMode() === "highlight" ? "active" : ""}`}
+                  class={highlightBtnClass}
                   onClick={() => handleEditorModeChange("highlight")}
                   title="Syntax highlight editor"
                 >
-                  <HighlightIcon />
+                  <Icon svg={HIGHLIGHT_ICON} />
                 </button>
                 <button
-                  class={`view-mode-btn ${editorMode() === "simple" ? "active" : ""}`}
+                  class={simpleBtnClass}
                   onClick={() => handleEditorModeChange("simple")}
                   title="Simple text editor"
                 >
-                  <SimpleIcon />
+                  <Icon svg={SIMPLE_ICON} />
                 </button>
               </div>
-              <span class={`save-status ${saveStatus()}`}>
+              <span class={saveStatusClass}>
                 {saveStatus() === "saving" && "Saving..."}
                 {saveStatus() === "saved" && "Saved"}
               </span>
@@ -503,38 +567,36 @@ function App() {
                 class="github-link"
                 title="View on GitHub"
               >
-                <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
-                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-                </svg>
+                <Icon svg={GITHUB_ICON} />
               </a>
             </div>
           </header>
-          <div class={`container view-${viewMode()}`}>
-            {/* Editor panel - use CSS visibility instead of Show to prevent re-creation */}
-            <div class="editor" style={{ display: viewMode() === "preview" ? "none" : undefined }}>
+          <div class={containerClass}>
+            {/* Editor panel - visibility controlled by CSS class */}
+            <div class="editor">
               {/* Syntax highlight editor - always mounted, visibility controlled by CSS */}
-              <div style={{ display: editorMode() === "highlight" ? "contents" : "none" }}>
+              <div class="editor-highlight-wrapper">
                 <SyntaxHighlightEditor
                   ref={(el) => { editorRef = el; }}
-                  value={source}
+                  value={() => source()}
                   onChange={handleChange}
                   onCursorChange={handleCursorChange}
                   initialCursorPosition={initialUIState.cursorPosition}
                 />
               </div>
               {/* Simple editor - always mounted, visibility controlled by CSS */}
-              <div style={{ display: editorMode() === "simple" ? "contents" : "none" }}>
+              <div class="editor-simple-wrapper">
                 <SimpleEditor
-                  value={source}
+                  value={() => source()}
                   onChange={handleChange}
+                  onCursorChange={handleCursorChange}
                   ref={(el) => { simpleEditorRef = el; }}
                 />
               </div>
             </div>
-            {/* Preview panel - use CSS visibility instead of Show */}
+            {/* Preview panel - visibility controlled by CSS class, rendered via effect */}
             <div
               class="preview"
-              style={{ display: viewMode() === "editor" ? "none" : undefined }}
               ref={(el) => { previewRef = el; }}
             />
           </div>

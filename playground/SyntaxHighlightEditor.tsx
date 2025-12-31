@@ -417,6 +417,10 @@ function setLineContent(el: HTMLElement, html: string): void {
 
 export interface SyntaxHighlightEditorHandle {
   focus: () => void;
+  getCursorPosition: () => number;
+  setCursorPosition: (pos: number) => void;
+  getScrollTop: () => number;
+  setScrollTop: (top: number) => void;
 }
 
 export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
@@ -443,6 +447,19 @@ export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
     if (props.ref) {
       props.ref({
         focus: () => editorRef?.focus(),
+        getCursorPosition: () => editorRef?.selectionStart ?? 0,
+        setCursorPosition: (pos: number) => {
+          if (editorRef) {
+            editorRef.setSelectionRange(pos, pos);
+            editorRef.focus();
+          }
+        },
+        getScrollTop: () => editorRef?.scrollTop ?? 0,
+        setScrollTop: (top: number) => {
+          if (editorRef) {
+            editorRef.scrollTop = top;
+          }
+        },
       });
     }
   });
@@ -482,11 +499,12 @@ export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
   };
 
   // Incremental highlight update - only update changed lines
-  const updateHighlight = () => {
+  // Accepts optional value/cursorPos for direct calls from input handlers
+  const updateHighlight = (inputValue?: string, inputCursorPos?: number) => {
     if (!highlightRef || !editorRef) return;
-    const value = props.value();
+    const value = inputValue ?? props.value();
     const valueLen = value.length;
-    const cursorPos = editorRef.selectionStart;
+    const cursorPos = inputCursorPos ?? editorRef.selectionStart;
     const [cursorLine, lineStart, lineEnd] = getLineInfo(value, cursorPos);
 
     // First render - must do full highlight
@@ -526,8 +544,27 @@ export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
 
     lastValueLength = valueLen;
 
-    // If line count changed or cursor jumped lines, do full re-highlight
-    if (lineCountChanged || Math.abs(cursorLine - lastCursorLine) > 1) {
+    // Check if cursor is inside a code block by scanning raw text for fence markers
+    let inCodeBlock = false;
+    let pos = 0;
+    let lineIdx = 0;
+    while (pos < value.length && lineIdx < cursorLine) {
+      const lineEndPos = value.indexOf("\n", pos);
+      const lineEndIdx = lineEndPos === -1 ? value.length : lineEndPos;
+      const rawLine = value.slice(pos, lineEndIdx);
+      // Check for fence start/end (``` at start of line)
+      if (/^`{3,}/.test(rawLine)) {
+        inCodeBlock = !inCodeBlock;
+      }
+      pos = lineEndIdx + 1;
+      lineIdx++;
+    }
+    // If we're on a fence line itself, we need full re-highlight too
+    const currentRawLine = value.slice(lineStart, lineEnd);
+    const isOnFenceLine = /^`{3,}/.test(currentRawLine);
+
+    // If line count changed, cursor jumped lines, inside code block, or on fence line, do full re-highlight
+    if (lineCountChanged || Math.abs(cursorLine - lastCursorLine) > 1 || inCodeBlock || isOnFenceLine) {
       const newHighlightedLines = highlightMarkdownLines(value);
       const maxLen = Math.max(lineElements.length, newHighlightedLines.length);
 
