@@ -1,6 +1,6 @@
 {
   "name": "@mizchi/markdown",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "incremental markdown parser",
   "scripts": {
     "prepublishOnly": "moon build",
@@ -20,7 +20,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.23.0",
   "devDependencies": {
-    "@luna_ui/luna": "^0.3.3",
+    "@luna_ui/luna": "^0.3.5",
     "@playwright/test": "^1.57.0",
     "@types/mdast": "^4.0.4",
     "@types/unist": "^3.0.3",
@@ -34,6 +34,7 @@
     "typescript": "^5.9.3",
     "unified": "^11.0.5",
     "vite": "^7.3.0",
+    "vite-plugin-moonbit": "0.1.2",
     "vitest": "^4.0.16"
   },
   "files": [

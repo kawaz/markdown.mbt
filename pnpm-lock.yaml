@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@luna_ui/luna':
-        specifier: ^0.3.3
-        version: 0.3.3
+        specifier: ^0.3.5
+        version: 0.3.5
       '@playwright/test':
         specifier: ^1.57.0
         version: 1.57.0
@@ -50,6 +50,9 @@ importers:
       vite:
         specifier: ^7.3.0
         version: 7.3.0(@types/node@25.0.3)
+      vite-plugin-moonbit:
+        specifier: 0.1.2
+        version: 0.1.2(vite@7.3.0(@types/node@25.0.3))
       vitest:
         specifier: ^4.0.16
         version: 4.0.16(@types/node@25.0.3)
@@ -223,8 +226,8 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@luna_ui/luna@0.3.3':
-    resolution: {integrity: sha512-pLUXj8TDuO7BPi/GklvDDj7apsHByJQK2GV0WQOBsYIX2GjrPPQrEq9F64VZ4Q3xADOhElYem96xJOP8+prJVA==}
+  '@luna_ui/luna@0.3.5':
+    resolution: {integrity: sha512-9JyVndPtlLwcRVqs9xkuPMsvOAk230DlEQYRrXs105tL7nxRci2mUZXBYlLWq0ZdINEWc/jSQbJqW2xXNIGcQA==}
     hasBin: true
 
   '@playwright/test@1.57.0':
@@ -1099,6 +1102,11 @@ packages:
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
 
+  vite-plugin-moonbit@0.1.2:
+    resolution: {integrity: sha512-ct4ZLYJTNFUs31omD+F5aqQ3dVoNfHMdZKepKg7YoipqlrlTBGeVST5h8DShF97DjUBQz0kl65ioBnSvu5jniQ==}
+    peerDependencies:
+      vite: '>=5.0.0'
+
   vite@7.3.0:
     resolution: {integrity: sha512-dZwN5L1VlUBewiP6H9s2+B3e3Jg96D0vzN+Ry73sOefebhYr9f94wwkMNN/9ouoU8pV1BqA1d1zGk8928cx0rg==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1311,7 +1319,7 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@luna_ui/luna@0.3.3': {}
+  '@luna_ui/luna@0.3.5': {}
 
   '@playwright/test@1.57.0':
     dependencies:
@@ -2444,6 +2452,10 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
+
+  vite-plugin-moonbit@0.1.2(vite@7.3.0(@types/node@25.0.3)):
+    dependencies:
+      vite: 7.3.0(@types/node@25.0.3)
 
   vite@7.3.0(@types/node@25.0.3):
     dependencies:

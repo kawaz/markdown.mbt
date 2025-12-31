@@ -395,7 +395,9 @@ fn try_parse_export(content : String, span : @markdown.Span) -> MdxBlock? {
   let info = parse_export_kind(chars, pos)
 
   // Get the value (rest of the content)
-  let value = substring(chars, info.value_start, len).trim(chars=" \t\n\r").to_string()
+  let value = substring(chars, info.value_start, len)
+    .trim(chars=" \t\n\r")
+    .to_string()
   Some(
     MdxBlock::ExportDecl(
       kind=info.kind,

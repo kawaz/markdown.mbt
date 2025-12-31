@@ -27,51 +27,41 @@ pub fn parse(source : String) -> SlideDocument {
   let current_blocks : Array[@markdown.Block] = []
   let mut slide_start = 0
   let mut slide_index = 0
-
   for block in doc.children {
     match block {
       @markdown.Block::ThematicBreak(span~, ..) => {
         // End current slide before the thematic break
         if current_blocks.length() > 0 {
-          slides.push(
-            Slide::{
-              index: slide_index,
-              start: slide_start,
-              end: span.from,
-              blocks: current_blocks.copy(),
-            },
-          )
+          slides.push(Slide::{
+            index: slide_index,
+            start: slide_start,
+            end: span.from,
+            blocks: current_blocks.copy(),
+          })
           slide_index += 1
           current_blocks.clear()
         }
         // Start new slide after thematic break
         slide_start = span.to
       }
-      _ => {
-        current_blocks.push(block)
-      }
+      _ => current_blocks.push(block)
     }
   }
 
   // Don't forget the last slide
   if current_blocks.length() > 0 {
-    slides.push(
-      Slide::{
-        index: slide_index,
-        start: slide_start,
-        end: source.length(),
-        blocks: current_blocks.copy(),
-      },
-    )
+    slides.push(Slide::{
+      index: slide_index,
+      start: slide_start,
+      end: source.length(),
+      blocks: current_blocks.copy(),
+    })
   }
 
   // Handle empty document
   if slides.length() == 0 {
-    slides.push(
-      Slide::{ index: 0, start: 0, end: source.length(), blocks: [] },
-    )
+    slides.push(Slide::{ index: 0, start: 0, end: source.length(), blocks: [] })
   }
-
   SlideDocument::{ slides, source }
 }
 
@@ -79,7 +69,7 @@ pub fn parse(source : String) -> SlideDocument {
 /// Find which slide contains the given cursor position
 pub fn SlideDocument::find_slide_at_position(
   self : SlideDocument,
-  position : Int
+  position : Int,
 ) -> Int {
   for slide in self.slides {
     if position >= slide.start && position < slide.end {
@@ -113,7 +103,7 @@ pub fn SlideDocument::get_slide(self : SlideDocument, index : Int) -> Slide? {
 /// Get the source text for a slide
 pub fn SlideDocument::get_slide_source(
   self : SlideDocument,
-  index : Int
+  index : Int,
 ) -> String {
   match self.get_slide(index) {
     Some(slide) => {
@@ -127,9 +117,7 @@ pub fn SlideDocument::get_slide_source(
         ""
       } else {
         // Use try to handle potential slice errors
-        try {
-          self.source[start:end].to_string()
-        } catch {
+        self.source[start:end].to_string() catch {
           _ => ""
         }
       }
