@@ -39,40 +39,11 @@ pub fn try_parse_mdx_blocks_from_block(
       // Get the raw text content of the paragraph
       let content = get_paragraph_text(children)
 
-      // Split by newlines to handle multiple statements
-      let lines = split_lines(content)
-      for line in lines {
-        let trimmed = line.trim(chars=" \t\n\r")
-
-        // Try import
-        if trimmed.has_prefix("import ") || trimmed.has_prefix("import{") {
-          match try_parse_import(line, span) {
-            Some(mdx) => result.push(mdx)
-            None => ()
-          }
-          continue
-        }
-
-        // Try export
-        if trimmed.has_prefix("export ") {
-          match try_parse_export(line, span) {
-            Some(mdx) => result.push(mdx)
-            None => ()
-          }
-          continue
-        }
-
-        // Try JSX element
-        if trimmed.has_prefix("<") {
-          match try_parse_jsx_element(line, span) {
-            Some(mdx) => result.push(mdx)
-            None => ()
-          }
-        }
-      }
+      // Parse MDX blocks from content, handling multi-line elements
+      parse_mdx_content(content, span, result)
     }
     @markdown.Block::HtmlBlock(html~, span~, ..) =>
-      // HTML blocks might be JSX
+      // HTML blocks might be JSX (already multi-line)
       match try_parse_jsx_element(html, span) {
         Some(mdx) => result.push(mdx)
         None => ()
@@ -83,27 +54,195 @@ pub fn try_parse_mdx_blocks_from_block(
 }
 
 ///|
-/// Split string by newlines
-fn split_lines(s : String) -> Array[String] {
-  let lines : Array[String] = []
-  let chars = s.to_array()
+/// Parse MDX content handling multi-line JSX elements
+fn parse_mdx_content(
+  content : String,
+  span : @markdown.Span,
+  result : Array[MdxBlock],
+) -> Unit {
+  let chars = content.to_array()
   let len = chars.length()
-  let buf = StringBuilder::new()
-  for i = 0; i < len; i = i + 1 {
-    if chars[i] == '\n' {
-      lines.push(buf.to_string())
-      buf.reset()
-    } else {
-      buf.write_char(chars[i])
+  let mut pos = 0
+
+  while pos < len {
+    // Skip leading whitespace
+    while pos < len && is_whitespace(chars[pos]) {
+      pos += 1
+    }
+    if pos >= len {
+      break
+    }
+
+    // Check what kind of statement this is
+    let remaining = substring(chars, pos, len)
+
+    // Try import (single line)
+    if remaining.has_prefix("import ") || remaining.has_prefix("import{") {
+      // Find end of line
+      let line_end = find_line_end(chars, pos, len)
+      let line = substring(chars, pos, line_end)
+      match try_parse_import(line, span) {
+        Some(mdx) => result.push(mdx)
+        None => ()
+      }
+      pos = line_end
+      // Skip newline
+      if pos < len && chars[pos] == '\n' {
+        pos += 1
+      }
+      continue
+    }
+
+    // Try export (single line for now)
+    if remaining.has_prefix("export ") {
+      let line_end = find_line_end(chars, pos, len)
+      let line = substring(chars, pos, line_end)
+      match try_parse_export(line, span) {
+        Some(mdx) => result.push(mdx)
+        None => ()
+      }
+      pos = line_end
+      if pos < len && chars[pos] == '\n' {
+        pos += 1
+      }
+      continue
+    }
+
+    // Try JSX element (may span multiple lines)
+    if chars[pos] == '<' {
+      // Extract complete JSX element
+      let jsx_end = find_jsx_element_end(chars, pos, len)
+      if jsx_end > pos {
+        let jsx_content = substring(chars, pos, jsx_end)
+        match try_parse_jsx_element(jsx_content, span) {
+          Some(mdx) => result.push(mdx)
+          None => ()
+        }
+        pos = jsx_end
+        continue
+      }
+    }
+
+    // Skip to next line if nothing matched
+    let line_end = find_line_end(chars, pos, len)
+    pos = line_end
+    if pos < len && chars[pos] == '\n' {
+      pos += 1
     }
   }
+}
 
-  // Add the last line if non-empty
-  let last = buf.to_string()
-  if last.length() > 0 {
-    lines.push(last)
+///|
+/// Find end of line (position of \n or end of string)
+fn find_line_end(chars : Array[Char], start : Int, len : Int) -> Int {
+  let mut pos = start
+  while pos < len && chars[pos] != '\n' {
+    pos += 1
   }
-  lines
+  pos
+}
+
+///|
+/// Find end of JSX element (handles multi-line and nested elements)
+fn find_jsx_element_end(chars : Array[Char], start : Int, len : Int) -> Int {
+  let mut pos = start
+
+  // Must start with <
+  if pos >= len || chars[pos] != '<' {
+    return start
+  }
+  pos += 1
+
+  // Skip closing tag marker if present
+  if pos < len && chars[pos] == '/' {
+    return start
+  }
+
+  // Parse tag name
+  let tag_start = pos
+  while pos < len && is_tag_name_char(chars[pos]) {
+    pos += 1
+  }
+  if pos == tag_start {
+    return start
+  }
+  let tag = substring(chars, tag_start, pos)
+
+  // Check if JSX component
+  if not(is_mdx_tag(tag)) {
+    return start
+  }
+
+  // Skip to end of opening tag, tracking nested braces for attributes
+  let mut brace_depth = 0
+  while pos < len {
+    let c = chars[pos]
+    if c == '{' {
+      brace_depth += 1
+    } else if c == '}' {
+      brace_depth -= 1
+    } else if c == '/' && brace_depth == 0 && pos + 1 < len && chars[pos + 1] == '>' {
+      // Self-closing tag
+      return pos + 2
+    } else if c == '>' && brace_depth == 0 {
+      pos += 1
+      break
+    }
+    pos += 1
+  }
+
+  // Find closing tag
+  let closing = "</" + tag + ">"
+  let closing_chars = closing.to_array()
+  let closing_len = closing_chars.length()
+  let mut depth = 1
+
+  while pos < len && depth > 0 {
+    // Check for nested opening tag
+    if chars[pos] == '<' && pos + 1 < len && chars[pos + 1] != '/' {
+      let nested_tag_start = pos + 1
+      let mut nested_tag_end = nested_tag_start
+      while nested_tag_end < len && is_tag_name_char(chars[nested_tag_end]) {
+        nested_tag_end += 1
+      }
+      let nested_tag = substring(chars, nested_tag_start, nested_tag_end)
+      if nested_tag == tag {
+        // Check it's not self-closing
+        let mut check_pos = nested_tag_end
+        while check_pos < len && chars[check_pos] != '>' {
+          if chars[check_pos] == '/' && check_pos + 1 < len && chars[check_pos + 1] == '>' {
+            // Self-closing, don't increase depth
+            break
+          }
+          check_pos += 1
+        }
+        if check_pos < len && chars[check_pos] == '>' {
+          depth += 1
+        }
+      }
+    }
+
+    // Check for closing tag
+    if pos + closing_len <= len {
+      let mut matches = true
+      for i = 0; i < closing_len; i = i + 1 {
+        if chars[pos + i] != closing_chars[i] {
+          matches = false
+          break
+        }
+      }
+      if matches {
+        depth -= 1
+        if depth == 0 {
+          return pos + closing_len
+        }
+      }
+    }
+    pos += 1
+  }
+
+  // If no closing tag found, return current position
+  pos
 }
 
 ///|

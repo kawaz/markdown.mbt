@@ -257,6 +257,54 @@ test "parse Web Component" {
   }
 }
 
+///|
+test "parse multi-line JSX element" {
+  // Note: `>` must be at the end of the last attribute line, not on its own line
+  // because markdown interprets a line starting with `>` as a blockquote
+  let mdx =
+    #|<Card
+    #|  title="Hello"
+    #|  onClick={handleClick}>
+    #|  Multi-line content
+    #|</Card>
+    #|
+  let result = @markdown.parse(mdx)
+  let blocks = parse_mdx_blocks(result.document)
+  assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, attributes~, children~, self_closing~, ..) => {
+      assert_eq(tag, "Card")
+      assert_eq(attributes.length(), 2)
+      assert_eq(attributes[0].name, "title")
+      assert_eq(attributes[1].name, "onClick")
+      assert_eq(self_closing, false)
+      assert_true(children.contains("Multi-line content"))
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "parse multi-line self-closing JSX" {
+  let mdx =
+    #|<Image
+    #|  src="/photo.jpg"
+    #|  alt="Photo"
+    #|/>
+    #|
+  let result = @markdown.parse(mdx)
+  let blocks = parse_mdx_blocks(result.document)
+  assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, attributes~, self_closing~, ..) => {
+      assert_eq(tag, "Image")
+      assert_eq(attributes.length(), 2)
+      assert_eq(self_closing, true)
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
 // =============================================================================
 // Metadata Extraction Tests
 // =============================================================================
