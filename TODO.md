@@ -93,6 +93,12 @@ let doc = parse(source, strict=true)
 - [ ] **Source maps**: Track original positions through transformations
 - [ ] **Custom syntax extensions**: Plugin system for custom block/inline types
 - [ ] **Streaming parser**: For very large documents
+- [ ] **SVG popup preview**: Show floating preview when editing SVG code blocks (use data-span for targeted updates)
+- [ ] **Moonlight SVG editor integration**: Integrate [mizchi/moonlight](https://github.com/mizchi/moonlight) for bidirectional SVG editing
+  - Lazy load via WebComponents (`<moonlight-editor>`)
+  - Code block handler for `moonlight-svg` language
+  - Bidirectional sync: editor ↔ source via `data-span`
+  - See `docs/moonlight_integrate.md` for details
 
 ## Notes
 
