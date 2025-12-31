@@ -1,7 +1,7 @@
 import { render, createSignal, createEffect, createMemo, onMount, onCleanup, Show, batch } from "@luna_ui/luna";
 import { parse } from "../js/api.js";
 import type { Root } from "mdast";
-import { MarkdownRenderer } from "./ast-renderer";
+import { MarkdownRenderer, type RendererCallbacks } from "./ast-renderer";
 import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "./SyntaxHighlightEditor";
 
 // IndexedDB for content (reliable async storage)
@@ -45,7 +45,14 @@ fn main() {
 - [Links](https://github.com/mizchi/markdown.mbt)
 - \`inline code\`
 - > Blockquotes
-- Lists and task lists
+
+## Interactive Task List
+
+Click the checkboxes below - they update the source in real-time!
+
+- [ ] Try clicking this checkbox
+- [x] This one is already checked
+- [ ] Interactive editing from preview
 
 ---
 
@@ -453,6 +460,56 @@ function App() {
   // Track last rendered AST version for scroll synchronization
   let lastRenderedAst: Root | null = null;
 
+  // Handle task checkbox toggle from preview
+  const handleTaskToggle = (span: string, checked: boolean) => {
+    const [startStr, endStr] = span.split("-");
+    const start = parseInt(startStr, 10);
+    const end = parseInt(endStr, 10);
+
+    const currentSource = source();
+    const itemText = currentSource.slice(start, end);
+
+    // Toggle [ ] <-> [x]
+    const newText = checked
+      ? itemText.replace(/\[ \]/, "[x]")
+      : itemText.replace(/\[x\]/i, "[ ]");
+
+    const newSource = currentSource.slice(0, start) + newText + currentSource.slice(end);
+
+    // Update source and AST synchronously (bypass debounce for immediate feedback)
+    hasModified = true;
+    setSource(newSource);
+    setAst(parse(newSource));
+
+    // Sync editor text
+    if (editorMode() === "highlight" && editorRef) {
+      editorRef.setValue(newSource);
+    } else if (simpleEditorRef) {
+      simpleEditorRef.value = newSource;
+    }
+
+    // Move cursor to the toggled checkbox position and focus editor
+    requestAnimationFrame(() => {
+      // Find the checkbox position (the '[' in '- [x]')
+      const checkboxPos = newSource.indexOf("[", start);
+      if (checkboxPos !== -1) {
+        setCursorPosition(checkboxPos);
+        if (editorMode() === "highlight" && editorRef) {
+          editorRef.setCursorPosition(checkboxPos);
+          editorRef.focus();
+        } else if (simpleEditorRef) {
+          simpleEditorRef.setSelectionRange(checkboxPos, checkboxPos);
+          simpleEditorRef.focus();
+        }
+      }
+    });
+  };
+
+  // Callbacks for interactive preview
+  const rendererCallbacks: RendererCallbacks = {
+    onTaskToggle: handleTaskToggle,
+  };
+
   // Render preview when AST changes
   createEffect(() => {
     const currentAst = ast();
@@ -460,7 +517,7 @@ function App() {
 
     // Clear and re-render
     previewRef.innerHTML = "";
-    render(previewRef, <MarkdownRenderer ast={currentAst} />);
+    render(previewRef, <MarkdownRenderer ast={currentAst} callbacks={rendererCallbacks} />);
     lastRenderedAst = currentAst;
   });
 

@@ -12,6 +12,16 @@ import type { Position } from "unist";
 // @ts-ignore - no type declarations for lezer_api.js
 import { highlight } from "../js/lezer_api.js";
 
+// Callbacks for interactive preview (optional - works without callbacks for static rendering)
+export interface RendererCallbacks {
+  // Task list checkbox toggle
+  onTaskToggle?: (span: string, checked: boolean) => void;
+  // Element click (future extension)
+  onElementClick?: (span: string, nodeType: string) => void;
+  // Code block action (future extension: execute, copy, etc.)
+  onCodeAction?: (span: string, lang: string, action: string) => void;
+}
+
 // Helper component to render raw HTML using ref callback
 function RawHtml({ html, ...props }: { html: string } & Record<string, unknown>) {
   return (
@@ -76,7 +86,11 @@ function getSpan(node: { position?: Position | undefined }): string {
 }
 
 // Block renderer
-export function renderBlock(block: RootContent, key?: string | number): JSX.Element | null {
+export function renderBlock(
+  block: RootContent,
+  key?: string | number,
+  callbacks?: RendererCallbacks
+): JSX.Element | null {
   switch (block.type) {
     case "paragraph":
       return (
@@ -120,7 +134,7 @@ export function renderBlock(block: RootContent, key?: string | number): JSX.Elem
     case "blockquote":
       return (
         <blockquote key={key} data-span={getSpan(block)}>
-          {block.children.map((child, i) => renderBlock(child, i)).filter(Boolean)}
+          {block.children.map((child, i) => renderBlock(child, i, callbacks)).filter(Boolean)}
         </blockquote>
       );
 
@@ -134,7 +148,7 @@ export function renderBlock(block: RootContent, key?: string | number): JSX.Elem
             class={hasTaskItems ? "contains-task-list" : undefined}
             data-span={getSpan(block)}
           >
-            {block.children.map((item, i) => renderListItem(item, i)).filter(Boolean)}
+            {block.children.map((item, i) => renderListItem(item, i, callbacks)).filter(Boolean)}
           </ol>
         );
       }
@@ -144,7 +158,7 @@ export function renderBlock(block: RootContent, key?: string | number): JSX.Elem
           class={hasTaskItems ? "contains-task-list" : undefined}
           data-span={getSpan(block)}
         >
-          {block.children.map((item, i) => renderListItem(item, i)).filter(Boolean)}
+          {block.children.map((item, i) => renderListItem(item, i, callbacks)).filter(Boolean)}
         </ul>
       );
     }
@@ -199,7 +213,7 @@ export function renderBlock(block: RootContent, key?: string | number): JSX.Elem
           data-span={getSpan(block)}
         >
           <sup>{block.label ?? block.identifier}</sup>
-          {block.children.map((child, i) => renderBlock(child, i)).filter(Boolean)}
+          {block.children.map((child, i) => renderBlock(child, i, callbacks)).filter(Boolean)}
         </div>
       );
 
@@ -213,7 +227,11 @@ export function renderBlock(block: RootContent, key?: string | number): JSX.Elem
 }
 
 // List item renderer
-function renderListItem(item: ListItem, key: number): JSX.Element {
+function renderListItem(
+  item: ListItem,
+  key: number,
+  callbacks?: RendererCallbacks
+): JSX.Element {
   const isTask = item.checked != null;
 
   if (isTask) {
@@ -227,14 +245,27 @@ function renderListItem(item: ListItem, key: number): JSX.Element {
           if (el) children.push(el);
         });
       } else {
-        const el = renderBlock(child, i);
+        const el = renderBlock(child, i, callbacks);
         if (el) children.push(el);
       }
     });
 
+    const span = getSpan(item);
+    const handleChange = callbacks?.onTaskToggle
+      ? (e: Event) => {
+          const target = e.currentTarget as HTMLInputElement;
+          callbacks.onTaskToggle!(span, target.checked);
+        }
+      : undefined;
+
     return (
-      <li key={key} class="task-list-item" data-span={getSpan(item)}>
-        <input type="checkbox" checked={item.checked ?? false} disabled />
+      <li key={key} class="task-list-item" data-span={span}>
+        <input
+          type="checkbox"
+          checked={item.checked ?? false}
+          disabled={!callbacks?.onTaskToggle}
+          onChange={handleChange}
+        />
         {children}
       </li>
     );
@@ -242,7 +273,7 @@ function renderListItem(item: ListItem, key: number): JSX.Element {
 
   return (
     <li key={key} data-span={getSpan(item)}>
-      {item.children.map((child, i) => renderBlock(child, i)).filter(Boolean)}
+      {item.children.map((child, i) => renderBlock(child, i, callbacks)).filter(Boolean)}
     </li>
   );
 }
@@ -346,11 +377,17 @@ export function renderInline(inline: PhrasingContent, key?: string | number): JS
 }
 
 // Document renderer component
-export function MarkdownRenderer({ ast }: { ast: Root }) {
+export function MarkdownRenderer({
+  ast,
+  callbacks,
+}: {
+  ast: Root;
+  callbacks?: RendererCallbacks;
+}) {
   if (!ast) return null;
   return (
     <div class="markdown-body" data-span={getSpan(ast)}>
-      {ast.children.map((block, i) => renderBlock(block, i)).filter(Boolean)}
+      {ast.children.map((block, i) => renderBlock(block, i, callbacks)).filter(Boolean)}
     </div>
   );
 }

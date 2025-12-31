@@ -421,6 +421,7 @@ export interface SyntaxHighlightEditorHandle {
   setCursorPosition: (pos: number) => void;
   getScrollTop: () => number;
   setScrollTop: (top: number) => void;
+  setValue: (value: string) => void;
 }
 
 export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
@@ -458,6 +459,13 @@ export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
         setScrollTop: (top: number) => {
           if (editorRef) {
             editorRef.scrollTop = top;
+          }
+        },
+        setValue: (value: string) => {
+          if (editorRef) {
+            editorRef.value = value;
+            // Trigger highlight update
+            updateHighlight(value);
           }
         },
       });
