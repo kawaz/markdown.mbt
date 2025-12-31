@@ -36,8 +36,8 @@ export interface MoonlightEditorProps {
   readonly?: boolean;
 }
 
-// Moonlight CDN URL
-const MOONLIGHT_CDN_URL = "https://moonlight.mizchi.workers.dev/moonlight-editor.component.js";
+// Moonlight script URL (local for development, CDN for production)
+const MOONLIGHT_SCRIPT_URL = "/moonlight-editor.component.js";
 
 // Track loading state
 let loadingPromise: Promise<boolean> | null = null;
@@ -58,7 +58,7 @@ async function loadMoonlight(): Promise<boolean> {
 
   loadingPromise = new Promise((resolve) => {
     const script = document.createElement("script");
-    script.src = MOONLIGHT_CDN_URL;
+    script.src = MOONLIGHT_SCRIPT_URL;
     script.async = true;
     script.onload = () => {
       // Wait for custom element to be defined
