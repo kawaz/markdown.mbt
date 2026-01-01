@@ -538,6 +538,36 @@ let incremental_parsed_50 : ParseResult = parse(incremental_doc_50)
 ///|
 let incremental_parsed_100 : ParseResult = parse(incremental_doc_100)
 
+// Pre-compute edited versions for benchmarks (avoid computing in bench loop)
+
+///|
+let edited_10 : (String, EditInfo) = edit_middle_paragraph(incremental_doc_10)
+
+///|
+let edited_50 : (String, EditInfo) = edit_middle_paragraph(incremental_doc_50)
+
+///|
+let edited_100 : (String, EditInfo) = edit_middle_paragraph(incremental_doc_100)
+
+// Pre-compute edge case edits
+///|
+let edited_50_start : (String, EditInfo) = {
+  let new_source = "# CHANGED Title\n" +
+    incremental_doc_50.unsafe_substring(
+      start=18,
+      end=incremental_doc_50.length(),
+    )
+  let edit = EditInfo::replace(2, 8, 14)
+  (new_source, edit)
+}
+
+///|
+let edited_50_end : (String, EditInfo) = {
+  let new_source = incremental_doc_50 + "New final paragraph added here.\n\n"
+  let edit = EditInfo::insert(incremental_doc_50.length(), 34)
+  (new_source, edit)
+}
+
 // Helper to create edited version (change middle paragraph)
 
 ///|
@@ -587,7 +617,7 @@ test "full parse: 10 paragraphs" (b : @bench.T) {
 
 ///|
 test "incremental: 10 paragraphs, edit middle" (b : @bench.T) {
-  let (new_source, edit) = edit_middle_paragraph(incremental_doc_10)
+  let (new_source, edit) = edited_10
   let old_doc = incremental_parsed_10.document
   b.bench(fn() {
     let result = parse_incremental(
@@ -611,7 +641,7 @@ test "full parse: 50 paragraphs" (b : @bench.T) {
 
 ///|
 test "incremental: 50 paragraphs, edit middle" (b : @bench.T) {
-  let (new_source, edit) = edit_middle_paragraph(incremental_doc_50)
+  let (new_source, edit) = edited_50
   let old_doc = incremental_parsed_50.document
   b.bench(fn() {
     let result = parse_incremental(
@@ -635,7 +665,7 @@ test "full parse: 100 paragraphs" (b : @bench.T) {
 
 ///|
 test "incremental: 100 paragraphs, edit middle" (b : @bench.T) {
-  let (new_source, edit) = edit_middle_paragraph(incremental_doc_100)
+  let (new_source, edit) = edited_100
   let old_doc = incremental_parsed_100.document
   b.bench(fn() {
     let result = parse_incremental(
@@ -649,12 +679,7 @@ test "incremental: 100 paragraphs, edit middle" (b : @bench.T) {
 
 ///|
 test "incremental: 50 paragraphs, edit start" (b : @bench.T) {
-  let new_source = "# CHANGED Title\n" +
-    incremental_doc_50.unsafe_substring(
-      start=18,
-      end=incremental_doc_50.length(),
-    )
-  let edit = EditInfo::replace(2, 8, 14) // "Document" -> "CHANGED"
+  let (new_source, edit) = edited_50_start
   let old_doc = incremental_parsed_50.document
   b.bench(fn() {
     let result = parse_incremental(
@@ -668,8 +693,7 @@ test "incremental: 50 paragraphs, edit start" (b : @bench.T) {
 
 ///|
 test "incremental: 50 paragraphs, edit end" (b : @bench.T) {
-  let new_source = incremental_doc_50 + "New final paragraph added here.\n\n"
-  let edit = EditInfo::insert(incremental_doc_50.length(), 34)
+  let (new_source, edit) = edited_50_end
   let old_doc = incremental_parsed_50.document
   b.bench(fn() {
     let result = parse_incremental(
