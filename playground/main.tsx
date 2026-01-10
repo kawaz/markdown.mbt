@@ -583,10 +583,11 @@ function App() {
           return <RawHtml key={key} data-span={span} html={sanitizeSvg(code)} />;
         },
       },
-      // Render ```moonlight-svg blocks with interactive Moonlight editor
+      // Render ```moonlight-svg blocks as interactive Moonlight editor
       "moonlight-svg": {
-        render: (code, span) => (
+        render: (code, span, key) => (
           <MoonlightEditor
+            key={key}
             initialSvg={code}
             span={span}
             onSvgChange={handleSvgChange}
@@ -598,15 +599,12 @@ function App() {
     },
   };
 
-  // Render preview when AST changes
+  // Track last rendered AST for scroll syncing
   createEffect(() => {
     const currentAst = ast();
-    if (!currentAst || !previewRef) return;
-
-    // Clear and re-render
-    previewRef.innerHTML = "";
-    render(previewRef, <MarkdownRenderer ast={currentAst} callbacks={rendererCallbacks} options={rendererOptions} />);
-    lastRenderedAst = currentAst;
+    if (currentAst) {
+      lastRenderedAst = currentAst;
+    }
   });
 
   // Sync preview scroll with cursor position (debounced to avoid excessive scrolling)
@@ -757,11 +755,15 @@ function App() {
                 />
               </div>
             </div>
-            {/* Preview panel - visibility controlled by CSS class, rendered via effect */}
-            <div
-              class="preview"
-              ref={(el) => { previewRef = el; }}
-            />
+            {/* Preview panel - reactive rendering with Show */}
+            <div class="preview" ref={(el) => { previewRef = el; }}>
+              <Show when={ast}>
+                {() => {
+                  const currentAst = ast();
+                  return currentAst ? <MarkdownRenderer ast={currentAst} callbacks={rendererCallbacks} options={rendererOptions} /> : null;
+                }}
+              </Show>
+            </div>
           </div>
         </div>
       )}
