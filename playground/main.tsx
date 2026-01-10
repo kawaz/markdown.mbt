@@ -531,6 +531,8 @@ function App() {
   };
 
   // Handle SVG change from Moonlight editor
+  // Note: We only update the source text, NOT the AST, to avoid re-rendering
+  // the preview and losing focus on the MoonlightEditor
   const handleSvgChange = (newSvg: string, span: string) => {
     const [startStr, endStr] = span.split("-");
     const start = parseInt(startStr, 10);
@@ -549,10 +551,10 @@ function App() {
       const suffix = currentSource.slice(start + contentEnd);
       const newSource = prefix + newSvg + suffix;
 
-      // Update source and AST
+      // Update source only (skip AST re-parse to prevent re-render and focus loss)
       hasModified = true;
       setSource(newSource);
-      setAst(parse(newSource));
+      // Don't call setAst() here - AST will be updated on next text editor change
 
       // Sync editor text
       if (editorMode() === "highlight" && editorRef) {
