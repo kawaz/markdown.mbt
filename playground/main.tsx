@@ -593,6 +593,7 @@ function App() {
             onSvgChange={handleSvgChange}
             width={400}
             height={300}
+            theme={isDark() ? "dark" : "light"}
           />
         ),
       },

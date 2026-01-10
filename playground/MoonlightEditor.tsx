@@ -18,6 +18,8 @@ export interface MoonlightEditorProps {
   height?: number;
   /** Read-only mode (shows preview only) */
   readonly?: boolean;
+  /** Theme: light or dark */
+  theme?: "light" | "dark";
 }
 
 /**
@@ -32,6 +34,7 @@ export function MoonlightEditor(props: MoonlightEditorProps) {
     width = 400,
     height = 300,
     readonly = false,
+    theme = "light",
   } = props;
 
   let containerRef: HTMLDivElement | null = null;
@@ -53,7 +56,7 @@ export function MoonlightEditor(props: MoonlightEditorProps) {
       editor = createEditor(containerRef, {
         width,
         height,
-        theme: "light",
+        theme,
         readonly,
         initialSvg: sanitized,
       });
