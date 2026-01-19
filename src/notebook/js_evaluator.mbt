@@ -11,7 +11,8 @@
 // =============================================================================
 
 ///|
-/// Evaluate JavaScript code and return result as string
+/// Evaluate oJavaScript code and return result as string
+#warnings("-1")
 extern "js" fn js_eval_code(code : String) -> String =
   #|(code) => {
   #|  try {
