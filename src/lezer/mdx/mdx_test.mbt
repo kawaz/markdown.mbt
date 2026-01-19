@@ -1,4 +1,5 @@
-///| MDX Tokenizer Tests
+///|
+/// MDX Tokenizer Tests
 
 // =============================================================================
 // Helper Functions
@@ -14,6 +15,7 @@ fn token_types(source : String) -> Array[MdxTokenType] {
   types
 }
 
+///|
 fn token_texts(source : String) -> Array[String] {
   let tokenizer = MdxTokenizer::new(source)
   let tokens = tokenizer.tokenize_all()
@@ -28,6 +30,7 @@ fn token_texts(source : String) -> Array[String] {
 // Markdown Basic Tests
 // =============================================================================
 
+///|
 test "tokenize heading" {
   let types = token_types("# Hello")
   assert_eq(types[0], HeadingMarker)
@@ -35,6 +38,7 @@ test "tokenize heading" {
   assert_true(types.length() >= 2)
 }
 
+///|
 test "tokenize heading level 2" {
   let types = token_types("## Title")
   assert_eq(types[0], HeadingMarker)
@@ -42,16 +46,19 @@ test "tokenize heading level 2" {
   assert_eq(texts[0], "##")
 }
 
+///|
 test "tokenize blockquote" {
   let types = token_types("> Quote")
   assert_eq(types[0], BlockQuoteMarker)
 }
 
+///|
 test "tokenize unordered list" {
   let types = token_types("- Item")
   assert_eq(types[0], ListMarker)
 }
 
+///|
 test "tokenize ordered list" {
   let types = token_types("1. Item")
   assert_eq(types[0], ListMarker)
@@ -59,6 +66,7 @@ test "tokenize ordered list" {
   assert_eq(texts[0], "1.")
 }
 
+///|
 test "tokenize thematic break" {
   // Note: --- at file start is FrontmatterMarker in MDX
   // Use --- after a newline to get ThematicBreak
@@ -67,6 +75,7 @@ test "tokenize thematic break" {
   assert_eq(types[1], ThematicBreak)
 }
 
+///|
 test "tokenize code fence" {
   let source = "```js\ncode\n```"
   let types = token_types(source)
@@ -78,11 +87,13 @@ test "tokenize code fence" {
   assert_eq(types[5], CodeFence)
 }
 
+///|
 test "tokenize inline code" {
   let types = token_types("Hello `code` world")
   assert_true(types.contains(InlineCode))
 }
 
+///|
 test "tokenize emphasis" {
   let types = token_types("*emphasis*")
   assert_eq(types[0], EmphasisMarker)
@@ -90,6 +101,7 @@ test "tokenize emphasis" {
   assert_eq(types[2], EmphasisMarker)
 }
 
+///|
 test "tokenize strong" {
   let types = token_types("**strong**")
   assert_eq(types[0], StrongMarker)
@@ -97,11 +109,13 @@ test "tokenize strong" {
   assert_eq(types[2], StrongMarker)
 }
 
+///|
 test "tokenize link" {
   let types = token_types("[text](url)")
   assert_eq(types[0], Link)
 }
 
+///|
 test "tokenize image" {
   let types = token_types("![alt](url)")
   assert_eq(types[0], Image)
@@ -111,6 +125,7 @@ test "tokenize image" {
 // Frontmatter Tests
 // =============================================================================
 
+///|
 test "tokenize frontmatter" {
   let source = "---\ntitle: Hello\n---\n"
   let types = token_types(source)
@@ -125,6 +140,7 @@ test "tokenize frontmatter" {
 // Import/Export Tests
 // =============================================================================
 
+///|
 test "tokenize simple import" {
   let source = "import Button from './Button'"
   let types = token_types(source)
@@ -134,6 +150,7 @@ test "tokenize simple import" {
   assert_eq(types[3], JsString)
 }
 
+///|
 test "tokenize named import" {
   let source = "import { Button, Card } from './components'"
   let types = token_types(source)
@@ -143,6 +160,7 @@ test "tokenize named import" {
   assert_true(types.contains(JsString))
 }
 
+///|
 test "tokenize export const" {
   let source = "export const title = 'Hello'"
   let types = token_types(source)
@@ -151,6 +169,7 @@ test "tokenize export const" {
   assert_eq(types[2], JsIdentifier)
 }
 
+///|
 test "tokenize export default" {
   let source = "export default Layout"
   let types = token_types(source)
@@ -163,6 +182,7 @@ test "tokenize export default" {
 // JSX Tests
 // =============================================================================
 
+///|
 test "tokenize simple JSX" {
   let source = "<Button>Click</Button>"
   let types = token_types(source)
@@ -175,6 +195,7 @@ test "tokenize simple JSX" {
   assert_eq(types[6], JsxTagClose)
 }
 
+///|
 test "tokenize self-closing JSX" {
   let source = "<Image />"
   let types = token_types(source)
@@ -183,6 +204,7 @@ test "tokenize self-closing JSX" {
   assert_eq(types[2], JsxTagClose) // />
 }
 
+///|
 test "tokenize JSX with attribute" {
   let source = "<Button variant=\"primary\">Click</Button>"
   let types = token_types(source)
@@ -191,6 +213,7 @@ test "tokenize JSX with attribute" {
   assert_true(types.contains(JsString))
 }
 
+///|
 test "tokenize JSX with expression" {
   let source = "<Button onClick={handleClick}>Click</Button>"
   let types = token_types(source)
@@ -199,6 +222,7 @@ test "tokenize JSX with expression" {
   assert_true(types.contains(JsxExprEnd))
 }
 
+///|
 test "tokenize web component" {
   let source = "<my-component>Content</my-component>"
   let types = token_types(source)
@@ -212,6 +236,7 @@ test "tokenize web component" {
 // Mixed Content Tests
 // =============================================================================
 
+///|
 test "tokenize import then markdown" {
   let source = "import Button from './Button'\n\n# Hello"
   let types = token_types(source)
@@ -219,6 +244,7 @@ test "tokenize import then markdown" {
   assert_true(types.contains(HeadingMarker))
 }
 
+///|
 test "tokenize markdown then JSX" {
   let source = "# Title\n\n<Button>Click</Button>"
   let types = token_types(source)
@@ -227,6 +253,7 @@ test "tokenize markdown then JSX" {
   assert_true(types.contains(JsxTagName))
 }
 
+///|
 test "tokenize full MDX document" {
   let source =
     #|---
@@ -261,6 +288,7 @@ test "tokenize full MDX document" {
 // Additional Markdown Tests
 // =============================================================================
 
+///|
 test "tokenize heading levels 1-6" {
   for i = 1; i <= 6; i = i + 1 {
     let marker = "#".repeat(i)
@@ -270,16 +298,19 @@ test "tokenize heading levels 1-6" {
   }
 }
 
+///|
 test "tokenize thematic break with asterisks" {
   let types = token_types("\n***")
   assert_eq(types[1], ThematicBreak)
 }
 
+///|
 test "tokenize thematic break with underscores" {
   let types = token_types("\n___")
   assert_eq(types[1], ThematicBreak)
 }
 
+///|
 test "tokenize code fence with tilde" {
   let source = "~~~python\nprint('hello')\n~~~"
   let types = token_types(source)
@@ -289,6 +320,7 @@ test "tokenize code fence with tilde" {
   assert_eq(texts[1], "python")
 }
 
+///|
 test "tokenize code fence without info" {
   let source = "```\ncode\n```"
   let types = token_types(source)
@@ -296,6 +328,7 @@ test "tokenize code fence without info" {
   assert_eq(types[1], Newline) // No CodeInfo when empty
 }
 
+///|
 test "tokenize emphasis with underscore" {
   let types = token_types("_emphasis_")
   assert_eq(types[0], EmphasisMarker)
@@ -303,6 +336,7 @@ test "tokenize emphasis with underscore" {
   assert_eq(types[2], EmphasisMarker)
 }
 
+///|
 test "tokenize strong with underscore" {
   let types = token_types("__strong__")
   assert_eq(types[0], StrongMarker)
@@ -310,12 +344,14 @@ test "tokenize strong with underscore" {
   assert_eq(types[2], StrongMarker)
 }
 
+///|
 test "tokenize inline code with backticks" {
   let types = token_types("use `console.log()` here")
   assert_true(types.contains(InlineCode))
   assert_true(types.contains(Text))
 }
 
+///|
 test "tokenize multiple list items" {
   let source = "- first\n- second\n- third"
   let types = token_types(source)
@@ -323,16 +359,19 @@ test "tokenize multiple list items" {
   assert_eq(count, 3)
 }
 
+///|
 test "tokenize asterisk list" {
   let types = token_types("* Item")
   assert_eq(types[0], ListMarker)
 }
 
+///|
 test "tokenize plus list" {
   let types = token_types("+ Item")
   assert_eq(types[0], ListMarker)
 }
 
+///|
 test "tokenize nested blockquote markers" {
   let source = "> level1\n>> level2"
   let types = token_types(source)
@@ -344,6 +383,7 @@ test "tokenize nested blockquote markers" {
 // Additional Frontmatter Tests
 // =============================================================================
 
+///|
 test "tokenize multiline frontmatter" {
   let source =
     #|---
@@ -352,7 +392,10 @@ test "tokenize multiline frontmatter" {
     #|date: 2024-01-01
     #|---
   let types = token_types(source)
-  let content_count = types.iter().filter(fn(t) { t == FrontmatterContent }).count()
+  let content_count = types
+    .iter()
+    .filter(fn(t) { t == FrontmatterContent })
+    .count()
   assert_eq(content_count, 3)
 }
 
@@ -360,6 +403,7 @@ test "tokenize multiline frontmatter" {
 // Additional Import/Export Tests
 // =============================================================================
 
+///|
 test "tokenize import star" {
   let source = "import * as React from 'react'"
   let types = token_types(source)
@@ -368,6 +412,7 @@ test "tokenize import star" {
   assert_true(types.contains(JsString))
 }
 
+///|
 test "tokenize multiple imports" {
   let source = "import A from 'a'\nimport B from 'b'"
   let types = token_types(source)
@@ -375,6 +420,7 @@ test "tokenize multiple imports" {
   assert_eq(import_count, 2)
 }
 
+///|
 test "tokenize export function" {
   let source = "export function getLayout() {}"
   let types = token_types(source)
@@ -386,6 +432,7 @@ test "tokenize export function" {
 // Additional JSX Tests
 // =============================================================================
 
+///|
 test "tokenize JSX with multiple attributes" {
   let source = "<Button id=\"btn\" class=\"primary\" disabled>Click</Button>"
   let types = token_types(source)
@@ -393,6 +440,7 @@ test "tokenize JSX with multiple attributes" {
   assert_eq(attr_count, 3) // id, class, disabled
 }
 
+///|
 test "tokenize JSX with nested expression" {
   let source = "<Component data={{ key: 'value' }} />"
   let types = token_types(source)
@@ -400,12 +448,14 @@ test "tokenize JSX with nested expression" {
   assert_true(types.contains(JsBrace))
 }
 
+///|
 test "tokenize JSX with boolean attribute" {
   let source = "<Input disabled />"
   let types = token_types(source)
   assert_true(types.contains(JsxAttribute))
 }
 
+///|
 test "tokenize inline JSX in paragraph" {
   let source = "Hello <Badge>new</Badge> world"
   let types = token_types(source)
@@ -414,12 +464,14 @@ test "tokenize inline JSX in paragraph" {
   assert_true(types.contains(JsxText))
 }
 
+///|
 test "tokenize JSX with single quote attribute" {
   let source = "<Button value='test'>Click</Button>"
   let types = token_types(source)
   assert_true(types.contains(JsString))
 }
 
+///|
 test "tokenize JSX fragment-like" {
   let source = "<div><span>nested</span></div>"
   let types = token_types(source)
@@ -429,6 +481,7 @@ test "tokenize JSX fragment-like" {
   assert_eq(close_count, 2)
 }
 
+///|
 test "tokenize web component with data attribute" {
   let source = "<custom-element data-id=\"123\" />"
   let types = token_types(source)
@@ -441,18 +494,21 @@ test "tokenize web component with data attribute" {
 // Edge Cases Tests
 // =============================================================================
 
+///|
 test "tokenize emphasis at line start after text" {
   let source = "text\n*emphasis*"
   let types = token_types(source)
   assert_true(types.contains(EmphasisMarker))
 }
 
+///|
 test "tokenize strong at line start after text" {
   let source = "text\n**strong**"
   let types = token_types(source)
   assert_true(types.contains(StrongMarker))
 }
 
+///|
 test "tokenize mixed inline elements" {
   let source = "**bold** and *italic* and `code`"
   let types = token_types(source)
@@ -461,6 +517,7 @@ test "tokenize mixed inline elements" {
   assert_true(types.contains(InlineCode))
 }
 
+///|
 test "tokenize empty JSX element" {
   let source = "<Empty></Empty>"
   let types = token_types(source)
@@ -470,12 +527,14 @@ test "tokenize empty JSX element" {
   assert_eq(types[3], JsxCloseTag)
 }
 
+///|
 test "tokenize link with title" {
   let source = "[text](url \"title\")"
   let types = token_types(source)
   assert_eq(types[0], Link)
 }
 
+///|
 test "tokenize image with title" {
   let source = "![alt](url \"title\")"
   let types = token_types(source)
@@ -486,6 +545,7 @@ test "tokenize image with title" {
 // Complex Document Tests
 // =============================================================================
 
+///|
 test "tokenize blog post structure" {
   let source =
     #|---
@@ -522,18 +582,21 @@ test "tokenize blog post structure" {
 // Highlight Tests
 // =============================================================================
 
+///|
 test "highlight MDX returns tokens" {
   let source = "# Hello\n\n<Button>Click</Button>"
   let tokens = highlight_mdx(source)
   assert_true(tokens.length() > 0)
 }
 
+///|
 test "highlight_mdx_to_html generates HTML" {
   let source = "# Hello"
   let html = highlight_mdx_to_html(source)
   assert_true(html.contains("<span"))
 }
 
+///|
 test "highlight complex MDX" {
   let source =
     #|import Button from './Button'
@@ -545,6 +608,7 @@ test "highlight complex MDX" {
   assert_true(tokens.length() > 5)
 }
 
+///|
 test "highlight preserves positions" {
   let source = "# Hello"
   let tokens = highlight_mdx(source)

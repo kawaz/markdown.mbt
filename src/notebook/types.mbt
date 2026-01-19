@@ -1,12 +1,15 @@
 ///| Interactive MDX Notebook Types
+
 ///|
+
 ///| marimo-inspired reactive notebook system for MDX
 
 // =============================================================================
 // Cell Types
 // =============================================================================
 
-///| A cell is a unit of executable code in the notebook
+///|
+/// A cell is a unit of executable code in the notebook
 pub(all) struct Cell {
   /// Unique identifier for this cell
   id : String
@@ -26,7 +29,8 @@ pub(all) struct Cell {
   state : CellState
 }
 
-///| Cell output types
+///|
+/// Cell output types
 pub(all) enum CellOutput {
   /// Plain text output
   Text(String)
@@ -40,7 +44,8 @@ pub(all) enum CellOutput {
   Multi(Array[CellOutput])
 }
 
-///| Cell execution state
+///|
+/// Cell execution state
 pub(all) enum CellState {
   /// Not yet executed
   Idle
@@ -58,7 +63,8 @@ pub(all) enum CellState {
 // Dependency Graph
 // =============================================================================
 
-///| Edge in the dependency graph
+///|
+/// Edge in the dependency graph
 pub(all) struct DependencyEdge {
   /// Source cell ID (defines the variable)
   from : String
@@ -68,7 +74,8 @@ pub(all) struct DependencyEdge {
   variable : String
 }
 
-///| Dependency graph for reactive execution
+///|
+/// Dependency graph for reactive execution
 pub(all) struct DependencyGraph {
   /// All cells in the notebook
   cells : Map[String, Cell]
@@ -82,7 +89,8 @@ pub(all) struct DependencyGraph {
 // Inline Directive
 // =============================================================================
 
-///| Inline file inclusion directive
+///|
+/// Inline file inclusion directive
 pub(all) struct InlineDirective {
   /// Source path (relative to current file)
   source : String
@@ -96,7 +104,8 @@ pub(all) struct InlineDirective {
 // Code Block Attributes
 // =============================================================================
 
-///| Extended code block attributes for notebooks
+///|
+/// Extended code block attributes for notebooks
 pub(all) struct CodeBlockAttrs {
   /// Cell identifier (:cell=name)
   cell : String?
@@ -110,7 +119,8 @@ pub(all) struct CodeBlockAttrs {
   executable : Bool
 }
 
-///| Output format for cell evaluation
+///|
+/// Output format for cell evaluation
 pub(all) enum OutputFormat {
   Text
   Html
@@ -122,7 +132,8 @@ pub(all) enum OutputFormat {
 // Notebook
 // =============================================================================
 
-///| A notebook document
+///|
+/// A notebook document
 pub(all) struct Notebook {
   /// Source file path
   path : String
@@ -140,7 +151,8 @@ pub(all) struct Notebook {
 // Evaluation Context
 // =============================================================================
 
-///| Context for cell evaluation
+///|
+/// Context for cell evaluation
 pub(all) struct EvalContext {
   /// Available variables from executed cells
   variables : Map[String, String]
@@ -153,11 +165,7 @@ pub(all) struct EvalContext {
 // =============================================================================
 
 ///|
-pub fn Cell::new(
-  id : String,
-  source : String,
-  language : String
-) -> Cell {
+pub fn Cell::new(id : String, source : String, language : String) -> Cell {
   {
     id,
     source,
@@ -177,7 +185,13 @@ pub fn DependencyGraph::new() -> DependencyGraph {
 
 ///|
 pub fn CodeBlockAttrs::new() -> CodeBlockAttrs {
-  { cell: None, deps: [], hidden: false, output_format: Auto, executable: false }
+  {
+    cell: None,
+    deps: [],
+    hidden: false,
+    output_format: Auto,
+    executable: false,
+  }
 }
 
 ///|

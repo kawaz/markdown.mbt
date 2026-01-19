@@ -1020,8 +1020,8 @@ let html_block_tags : Array[String] = [
   "fieldset", "figcaption", "figure", "footer", "form", "frame", "frameset", "h1",
   "h2", "h3", "h4", "h5", "h6", "head", "header", "hr", "html", "iframe", "legend",
   "li", "link", "main", "menu", "menuitem", "nav", "noframes", "ol", "optgroup",
-  "option", "p", "param", "search", "section", "summary", "svg", "table", "tbody", "td",
-  "tfoot", "th", "thead", "title", "tr", "track", "ul",
+  "option", "p", "param", "search", "section", "summary", "svg", "table", "tbody",
+  "td", "tfoot", "th", "thead", "title", "tr", "track", "ul",
 ]
 
 ///|
@@ -1146,12 +1146,11 @@ fn BlockParser::try_parse_html_block(self : BlockParser, start : Int) -> Block? 
           }
         }
       }
-      None => {
+      None =>
         // Standard HTML block: end on blank line
         if self.scanner.is_blank_line() {
           break
         }
-      }
     }
   }
   let html = content_buf.to_string()

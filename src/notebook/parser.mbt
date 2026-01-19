@@ -1,16 +1,24 @@
 ///| Code Block Attribute Parser
+
 ///|
+
 ///| Parses extended code block attributes for notebook cells
+
 ///|
+
 ///| Format: ```lang :cell=name :deps=a,b,c :hide :output=html
+
 ///| Example: ```moonbit :cell=data :deps=input :output=json
 
 // =============================================================================
 // Attribute Parsing
 // =============================================================================
 
-///| Parse code block info string with notebook attributes
-pub fn parse_code_block_attrs(info : String) -> (@info_string.CodeBlockInfo, CodeBlockAttrs) {
+///|
+/// Parse code block info string with notebook attributes
+pub fn parse_code_block_attrs(
+  info : String,
+) -> (@info_string.CodeBlockInfo, CodeBlockAttrs) {
   let base_info = @info_string.parse(info)
   let attrs = CodeBlockAttrs::new()
 
@@ -24,7 +32,8 @@ pub fn parse_code_block_attrs(info : String) -> (@info_string.CodeBlockInfo, Cod
   (base_info, parsed_attrs)
 }
 
-///| Parse notebook attributes from meta string
+///|
+/// Parse notebook attributes from meta string
 fn parse_attrs_from_meta(meta : String) -> CodeBlockAttrs {
   let mut cell : String? = None
   let mut deps : Array[String] = []
@@ -51,32 +60,28 @@ fn parse_attrs_from_meta(meta : String) -> CodeBlockAttrs {
     if trimmed.has_prefix(":cell=") {
       cell = Some(trimmed.unsafe_substring(start=6, end=trimmed.length()))
       executable = true
-    }
-    // :deps=a,b,c
-    else if trimmed.has_prefix(":deps=") {
+      // :deps=a,b,c
+    } else if trimmed.has_prefix(":deps=") {
       let deps_str = trimmed.unsafe_substring(start=6, end=trimmed.length())
       deps = split_by_comma(deps_str)
       executable = true
-    }
-    // :hide
-    else if trimmed == ":hide" {
+      // :hide
+    } else if trimmed == ":hide" {
       hidden = true
-    }
-    // :output=html|json|text
-    else if trimmed.has_prefix(":output=") {
+      // :output=html|json|text
+    } else if trimmed.has_prefix(":output=") {
       let format_str = trimmed.unsafe_substring(start=8, end=trimmed.length())
       output_format = parse_output_format(format_str)
-    }
-    // :exec (mark as executable without cell name)
-    else if trimmed == ":exec" {
+      // :exec (mark as executable without cell name)
+    } else if trimmed == ":exec" {
       executable = true
     }
   }
-
   { cell, deps, hidden, output_format, executable }
 }
 
-///| Parse output format from string
+///|
+/// Parse output format from string
 fn parse_output_format(s : String) -> OutputFormat {
   match s {
     "html" => Html
@@ -86,12 +91,12 @@ fn parse_output_format(s : String) -> OutputFormat {
   }
 }
 
-///| Split string by whitespace (simple implementation)
+///|
+/// Split string by whitespace (simple implementation)
 fn split_by_whitespace(s : String) -> Array[String] {
   let result : Array[String] = []
   let buf = StringBuilder::new()
   let chars = s.to_array()
-
   for c in chars {
     if c == ' ' || c == '\t' {
       if buf.to_string().length() > 0 {
@@ -102,23 +107,25 @@ fn split_by_whitespace(s : String) -> Array[String] {
       buf.write_char(c)
     }
   }
-
   if buf.to_string().length() > 0 {
     result.push(buf.to_string())
   }
-
   result
 }
 
-///| Split string by comma
+///|
+/// Split string by comma
 fn split_by_comma(s : String) -> Array[String] {
   let result : Array[String] = []
   let buf = StringBuilder::new()
   let chars = s.to_array()
-
   for c in chars {
     if c == ',' {
-      let part = buf.to_string().trim_start(chars=" ").trim_end(chars=" ").to_string()
+      let part = buf
+        .to_string()
+        .trim_start(chars=" ")
+        .trim_end(chars=" ")
+        .to_string()
       if part.length() > 0 {
         result.push(part)
       }
@@ -127,12 +134,14 @@ fn split_by_comma(s : String) -> Array[String] {
       buf.write_char(c)
     }
   }
-
-  let final_part = buf.to_string().trim_start(chars=" ").trim_end(chars=" ").to_string()
+  let final_part = buf
+    .to_string()
+    .trim_start(chars=" ")
+    .trim_end(chars=" ")
+    .to_string()
   if final_part.length() > 0 {
     result.push(final_part)
   }
-
   result
 }
 
@@ -140,7 +149,8 @@ fn split_by_comma(s : String) -> Array[String] {
 // Inline Directive Parsing
 // =============================================================================
 
-///| Parse <Inline source="path" /> directive from JSX
+///|
+/// Parse <Inline source="path" /> directive from JSX
 pub fn parse_inline_directive(jsx : String) -> InlineDirective? {
   // Simple regex-like parsing for <Inline source="..." />
   if !jsx.contains("<Inline") {
@@ -162,11 +172,11 @@ pub fn parse_inline_directive(jsx : String) -> InlineDirective? {
   }
 }
 
-///| Extract attribute value from JSX-like string
+///|
+/// Extract attribute value from JSX-like string
 fn extract_attribute(jsx : String, attr_name : String) -> String? {
   // Look for attr="value" or attr='value'
   let patterns = [attr_name + "=\"", attr_name + "='"]
-
   for pattern in patterns {
     match jsx.find(pattern) {
       Some(start) => {
@@ -174,19 +184,15 @@ fn extract_attribute(jsx : String, attr_name : String) -> String? {
         let quote_char = if pattern.has_suffix("\"") { '"' } else { '\'' }
         let chars = jsx.to_array()
         let mut end = value_start
-
         while end < chars.length() && chars[end] != quote_char {
           end += 1
         }
-
         if end > value_start {
-          return Some(jsx.unsafe_substring(start=value_start, end=end))
+          return Some(jsx.unsafe_substring(start=value_start, end~))
         }
       }
       None => continue
     }
   }
-
   None
 }
-

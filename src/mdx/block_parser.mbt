@@ -63,7 +63,6 @@ fn parse_mdx_content(
   let chars = content.to_array()
   let len = chars.length()
   let mut pos = 0
-
   while pos < len {
     // Skip leading whitespace
     while pos < len && is_whitespace(chars[pos]) {
@@ -181,7 +180,10 @@ fn find_jsx_element_end(chars : Array[Char], start : Int, len : Int) -> Int {
       brace_depth += 1
     } else if c == '}' {
       brace_depth -= 1
-    } else if c == '/' && brace_depth == 0 && pos + 1 < len && chars[pos + 1] == '>' {
+    } else if c == '/' &&
+      brace_depth == 0 &&
+      pos + 1 < len &&
+      chars[pos + 1] == '>' {
       // Self-closing tag
       return pos + 2
     } else if c == '>' && brace_depth == 0 {
@@ -196,7 +198,6 @@ fn find_jsx_element_end(chars : Array[Char], start : Int, len : Int) -> Int {
   let closing_chars = closing.to_array()
   let closing_len = closing_chars.length()
   let mut depth = 1
-
   while pos < len && depth > 0 {
     // Check for nested opening tag
     if chars[pos] == '<' && pos + 1 < len && chars[pos + 1] != '/' {
@@ -210,7 +211,9 @@ fn find_jsx_element_end(chars : Array[Char], start : Int, len : Int) -> Int {
         // Check it's not self-closing
         let mut check_pos = nested_tag_end
         while check_pos < len && chars[check_pos] != '>' {
-          if chars[check_pos] == '/' && check_pos + 1 < len && chars[check_pos + 1] == '>' {
+          if chars[check_pos] == '/' &&
+            check_pos + 1 < len &&
+            chars[check_pos + 1] == '>' {
             // Self-closing, don't increase depth
             break
           }

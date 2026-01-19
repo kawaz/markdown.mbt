@@ -43,7 +43,9 @@ fn generate_mdx_doc(imports : Int, exports : Int, components : Int) -> String {
   }
   buf.write_string("\n# Title\n\n")
   for i = 0; i < components; i = i + 1 {
-    buf.write_string("<Component\{i} prop\{i}=\"value\{i}\">Content \{i}</Component\{i}>\n\n")
+    buf.write_string(
+      "<Component\{i} prop\{i}=\"value\{i}\">Content \{i}</Component\{i}>\n\n",
+    )
   }
   buf.to_string()
 }

@@ -1,13 +1,17 @@
 ///| JavaScript Runtime Evaluator
+
 ///|
+
 ///| Evaluate JavaScript/MoonBit code cells via external runtime
+
 ///| This module provides FFI bindings for JS-based evaluation
 
 // =============================================================================
 // JS FFI Declarations (for wasm-gc/js target)
 // =============================================================================
 
-///| Evaluate JavaScript code and return result as string
+///|
+/// Evaluate JavaScript code and return result as string
 extern "js" fn js_eval_code(code : String) -> String =
   #|(code) => {
   #|  try {
@@ -19,8 +23,14 @@ extern "js" fn js_eval_code(code : String) -> String =
   #|}
 
 ///| Execute JavaScript code with context variables
-///| Returns JSON: { result, exports: { name: value } } or { error: "..." }
-extern "js" fn js_eval_with_context(code : String, context_json : String, exports_list : String) -> String =
+
+///|
+/// Returns JSON: { result, exports: { name: value } } or { error: "..." }
+extern "js" fn js_eval_with_context(
+  code : String,
+  context_json : String,
+  exports_list : String,
+) -> String =
   #|(code, contextJson, exportsList) => {
   #|  try {
   #|    const context = JSON.parse(contextJson);
@@ -50,7 +60,8 @@ extern "js" fn js_eval_with_context(code : String, context_json : String, export
 // JavaScript Evaluator
 // =============================================================================
 
-///| Create a JavaScript evaluator function
+///|
+/// Create a JavaScript evaluator function
 pub fn create_js_evaluator() -> (String, EvalContext) -> CellOutput {
   fn eval_js(source : String, context : EvalContext) -> CellOutput {
     // Analyze source to get exports
@@ -66,10 +77,12 @@ pub fn create_js_evaluator() -> (String, EvalContext) -> CellOutput {
     // Parse result
     parse_eval_result(result)
   }
+
   eval_js
 }
 
-///| Build JSON string from evaluation context
+///|
+/// Build JSON string from evaluation context
 fn build_context_json(context : EvalContext) -> String {
   let buf = StringBuilder::new()
   buf.write_string("{")
@@ -90,7 +103,8 @@ fn build_context_json(context : EvalContext) -> String {
   buf.to_string()
 }
 
-///| Parse evaluation result from JSON
+///|
+/// Parse evaluation result from JSON
 fn parse_eval_result(json : String) -> CellOutput {
   // Simple JSON parsing for result
   if json.contains("\"error\"") {
@@ -105,7 +119,8 @@ fn parse_eval_result(json : String) -> CellOutput {
   }
 }
 
-///| Extract field value from simple JSON object
+///|
+/// Extract field value from simple JSON object
 fn extract_json_field(json : String, field : String) -> String? {
   let pattern = "\"" + field + "\":"
   match json.find(pattern) {
@@ -118,7 +133,6 @@ fn extract_json_field(json : String, field : String) -> String? {
       while pos < chars.length() && (chars[pos] == ' ' || chars[pos] == '\t') {
         pos += 1
       }
-
       if pos >= chars.length() {
         return None
       }
@@ -138,7 +152,6 @@ fn extract_json_field(json : String, field : String) -> String? {
         }
         return Some(buf.to_string())
       }
-
       None
     }
     None => None
@@ -150,8 +163,13 @@ fn extract_json_field(json : String, field : String) -> String? {
 // =============================================================================
 
 ///| Compile MoonBit code to JavaScript (external service)
-///| Returns JSON: { "success": true, "js": "..." } or { "success": false, "error": "..." }
-extern "js" fn moonbit_compile_to_js(source : String, exports_json : String) -> String =
+
+///|
+/// Returns JSON: { "success": true, "js": "..." } or { "success": false, "error": "..." }
+extern "js" fn moonbit_compile_to_js(
+  source : String,
+  exports_json : String,
+) -> String =
   #|(source, exportsJson) => {
   #|  // This is a placeholder that would call an external compile service
   #|  // In real implementation, this would:
@@ -169,8 +187,13 @@ extern "js" fn moonbit_compile_to_js(source : String, exports_json : String) -> 
   #|  });
   #|}
 
-///| Execute compiled JavaScript with context
-extern "js" fn execute_compiled_moonbit(compiled_js : String, context_json : String, exports_list : String) -> String =
+///|
+/// Execute compiled JavaScript with context
+extern "js" fn execute_compiled_moonbit(
+  compiled_js : String,
+  context_json : String,
+  exports_list : String,
+) -> String =
   #|(compiledJs, contextJson, exportsList) => {
   #|  try {
   #|    const context = JSON.parse(contextJson);
@@ -213,7 +236,9 @@ extern "js" fn execute_compiled_moonbit(compiled_js : String, context_json : Str
 // =============================================================================
 
 ///| Create a MoonBit evaluator function
-///| Uses external compiler service if available
+
+///|
+/// Uses external compiler service if available
 pub fn create_moonbit_evaluator() -> (String, EvalContext) -> CellOutput {
   fn eval_moonbit(source : String, context : EvalContext) -> CellOutput {
     // First, analyze the source to get exports
@@ -230,7 +255,9 @@ pub fn create_moonbit_evaluator() -> (String, EvalContext) -> CellOutput {
         Some(compiled_js) => {
           // Execute compiled code with context
           let context_json = build_context_json(context)
-          let exec_result = execute_compiled_moonbit(compiled_js, context_json, exports_json)
+          let exec_result = execute_compiled_moonbit(
+            compiled_js, context_json, exports_json,
+          )
 
           // Parse execution result
           if exec_result.contains("\"success\":true") {
@@ -257,10 +284,12 @@ pub fn create_moonbit_evaluator() -> (String, EvalContext) -> CellOutput {
       }
     }
   }
+
   eval_moonbit
 }
 
-///| Convert string array to JSON array string
+///|
+/// Convert string array to JSON array string
 fn array_to_json(arr : Array[String]) -> String {
   let buf = StringBuilder::new()
   buf.write_string("[")
@@ -276,7 +305,8 @@ fn array_to_json(arr : Array[String]) -> String {
   buf.to_string()
 }
 
-///| Escape special characters in JSON string
+///|
+/// Escape special characters in JSON string
 fn escape_json_string(s : String) -> String {
   let buf = StringBuilder::new()
   let chars = s.to_array()
@@ -297,7 +327,8 @@ fn escape_json_string(s : String) -> String {
 // Engine Setup
 // =============================================================================
 
-///| Create an evaluation engine with JS and MoonBit support
+///|
+/// Create an evaluation engine with JS and MoonBit support
 pub fn create_notebook_engine() -> EvalEngine {
   let engine = EvalEngine::new()
   engine.register("javascript", create_js_evaluator())

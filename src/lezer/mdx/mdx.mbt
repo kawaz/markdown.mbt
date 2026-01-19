@@ -1,6 +1,9 @@
 ///| MDX Tokenizer
+
 ///|
+
 ///| A tokenizer for MDX (Markdown + JSX) for syntax highlighting.
+
 ///| Handles Markdown syntax, import/export statements, and JSX components.
 
 // =============================================================================
@@ -163,6 +166,7 @@ fn MdxTokenizer::push_context(self : MdxTokenizer, ctx : MdxContext) -> Unit {
 fn MdxTokenizer::pop_context(self : MdxTokenizer) -> Unit {
   if self.context_stack.length() > 1 {
     let _ = self.context_stack.pop()
+
   }
 }
 
@@ -250,10 +254,13 @@ fn MdxTokenizer::read_list_marker(self : MdxTokenizer) -> MdxToken {
     self.pos += 1
   } else if c >= '0' && c <= '9' {
     // Ordered list: 1. 2. etc.
-    while self.pos < self.len && self.chars[self.pos] >= '0' && self.chars[self.pos] <= '9' {
+    while self.pos < self.len &&
+          self.chars[self.pos] >= '0' &&
+          self.chars[self.pos] <= '9' {
       self.pos += 1
     }
-    if self.pos < self.len && (self.chars[self.pos] == '.' || self.chars[self.pos] == ')') {
+    if self.pos < self.len &&
+      (self.chars[self.pos] == '.' || self.chars[self.pos] == ')') {
       self.pos += 1
     }
   }
@@ -265,7 +272,8 @@ fn MdxTokenizer::read_list_marker(self : MdxTokenizer) -> MdxToken {
 fn MdxTokenizer::read_thematic_break(self : MdxTokenizer) -> MdxToken {
   let start = self.pos
   let c = self.chars[self.pos]
-  while self.pos < self.len && (self.chars[self.pos] == c || is_whitespace(self.chars[self.pos])) {
+  while self.pos < self.len &&
+        (self.chars[self.pos] == c || is_whitespace(self.chars[self.pos])) {
     self.pos += 1
   }
   { token_type: ThematicBreak, from: start, to: self.pos }
@@ -410,11 +418,21 @@ fn MdxTokenizer::read_link_or_image(self : MdxTokenizer) -> MdxToken {
   }
   // Expect (
   if self.pos >= self.len || self.chars[self.pos] != '(' {
-    return { token_type: if is_image { Image } else { Link }, from: start, to: self.pos }
+    return {
+      token_type: if is_image {
+        Image
+      } else {
+        Link
+      },
+      from: start,
+      to: self.pos,
+    }
   }
   self.pos += 1
   // Read url until ) or space
-  while self.pos < self.len && self.chars[self.pos] != ')' && !is_whitespace(self.chars[self.pos]) {
+  while self.pos < self.len &&
+        self.chars[self.pos] != ')' &&
+        !is_whitespace(self.chars[self.pos]) {
     self.pos += 1
   }
   // Skip optional title
@@ -422,7 +440,8 @@ fn MdxTokenizer::read_link_or_image(self : MdxTokenizer) -> MdxToken {
     while self.pos < self.len && is_whitespace(self.chars[self.pos]) {
       self.pos += 1
     }
-    if self.pos < self.len && (self.chars[self.pos] == '"' || self.chars[self.pos] == '\'') {
+    if self.pos < self.len &&
+      (self.chars[self.pos] == '"' || self.chars[self.pos] == '\'') {
       let quote = self.chars[self.pos]
       self.pos += 1
       while self.pos < self.len && self.chars[self.pos] != quote {
@@ -445,7 +464,9 @@ fn MdxTokenizer::read_link_or_image(self : MdxTokenizer) -> MdxToken {
 fn MdxTokenizer::read_autolink(self : MdxTokenizer) -> MdxToken {
   let start = self.pos
   self.pos += 1 // Skip <
-  while self.pos < self.len && self.chars[self.pos] != '>' && !is_newline(self.chars[self.pos]) {
+  while self.pos < self.len &&
+        self.chars[self.pos] != '>' &&
+        !is_newline(self.chars[self.pos]) {
     self.pos += 1
   }
   if self.pos < self.len && self.chars[self.pos] == '>' {
@@ -575,7 +596,7 @@ fn MdxTokenizer::next_jsx_element_token(self : MdxTokenizer) -> MdxToken? {
   let start = self.pos
   let c = self.chars[self.pos]
   match c {
-    '/' => {
+    '/' =>
       if self.pos + 1 < self.len && self.chars[self.pos + 1] == '>' {
         // Self-closing />
         self.pos += 2
@@ -585,7 +606,6 @@ fn MdxTokenizer::next_jsx_element_token(self : MdxTokenizer) -> MdxToken? {
         self.pos += 1
         Some({ token_type: JsOperator, from: start, to: self.pos })
       }
-    }
     '>' => {
       self.pos += 1
       self.pop_context()
@@ -619,7 +639,7 @@ fn MdxTokenizer::next_jsx_children_token(self : MdxTokenizer) -> MdxToken? {
   let start = self.pos
   let c = self.chars[self.pos]
   match c {
-    '<' => {
+    '<' =>
       if self.pos + 1 < self.len && self.chars[self.pos + 1] == '/' {
         // Closing tag </
         self.pos += 2
@@ -632,7 +652,6 @@ fn MdxTokenizer::next_jsx_children_token(self : MdxTokenizer) -> MdxToken? {
         self.push_context(JsxTagStart)
         Some({ token_type: JsxTagOpen, from: start, to: self.pos })
       }
-    }
     '{' => {
       self.pos += 1
       self.push_context(JsxExpression)
@@ -724,7 +743,9 @@ fn MdxTokenizer::read_text(self : MdxTokenizer) -> MdxToken {
 /// Read newline
 fn MdxTokenizer::read_newline(self : MdxTokenizer) -> MdxToken {
   let start = self.pos
-  if self.chars[self.pos] == '\r' && self.pos + 1 < self.len && self.chars[self.pos + 1] == '\n' {
+  if self.chars[self.pos] == '\r' &&
+    self.pos + 1 < self.len &&
+    self.chars[self.pos + 1] == '\n' {
     self.pos += 2
   } else {
     self.pos += 1
@@ -761,7 +782,11 @@ pub fn MdxTokenizer::next_token(self : MdxTokenizer) -> MdxToken? {
       }
       if self.pos > start {
         self.line_start = false
-        return Some({ token_type: FrontmatterContent, from: start, to: self.pos })
+        return Some({
+          token_type: FrontmatterContent,
+          from: start,
+          to: self.pos,
+        })
       }
       if is_newline(self.peek()) {
         return Some(self.read_newline())
@@ -808,12 +833,8 @@ pub fn MdxTokenizer::next_token(self : MdxTokenizer) -> MdxToken? {
       self.pop_context()
       ()
     }
-    JsxElement => {
-      return self.next_jsx_element_token()
-    }
-    JsxChildren => {
-      return self.next_jsx_children_token()
-    }
+    JsxElement => return self.next_jsx_element_token()
+    JsxChildren => return self.next_jsx_children_token()
     JsxClosingTag => {
       // Skip whitespace
       while self.pos < self.len && is_whitespace(self.chars[self.pos]) {
@@ -893,7 +914,9 @@ pub fn MdxTokenizer::next_token(self : MdxTokenizer) -> MdxToken? {
         self.pos += 1
         return Some({ token_type: JsBrace, from: start, to: self.pos })
       }
-      if c == '/' && self.pos + 1 < self.len && (self.peek_at(1) == '/' || self.peek_at(1) == '*') {
+      if c == '/' &&
+        self.pos + 1 < self.len &&
+        (self.peek_at(1) == '/' || self.peek_at(1) == '*') {
         return Some(self.read_js_comment())
       }
       // Other punctuation
@@ -979,7 +1002,8 @@ pub fn MdxTokenizer::next_token(self : MdxTokenizer) -> MdxToken? {
           }
           check_pos += 1
         }
-        if count >= 3 && (check_pos >= self.len || is_newline(self.chars[check_pos])) {
+        if count >= 3 &&
+          (check_pos >= self.len || is_newline(self.chars[check_pos])) {
           self.line_start = false
           return Some(self.read_thematic_break())
         }
@@ -1004,7 +1028,8 @@ pub fn MdxTokenizer::next_token(self : MdxTokenizer) -> MdxToken? {
           }
           check_pos += 1
         }
-        if count >= 3 && (check_pos >= self.len || is_newline(self.chars[check_pos])) {
+        if count >= 3 &&
+          (check_pos >= self.len || is_newline(self.chars[check_pos])) {
           self.line_start = false
           return Some(self.read_thematic_break())
         }
@@ -1033,26 +1058,21 @@ pub fn MdxTokenizer::next_token(self : MdxTokenizer) -> MdxToken? {
       }
     }
   }
-
   self.line_start = false
 
   // Inline elements
   if c == '`' {
     return Some(self.read_inline_code())
   }
-
   if c == '*' || c == '_' {
     return Some(self.read_emphasis_marker())
   }
-
   if c == '[' {
     return Some(self.read_link_or_image())
   }
-
   if c == '!' && self.peek_at(1) == '[' {
     return Some(self.read_link_or_image())
   }
-
   if c == '<' {
     // Check for JSX
     if self.is_jsx_start() {
@@ -1064,7 +1084,6 @@ pub fn MdxTokenizer::next_token(self : MdxTokenizer) -> MdxToken? {
     // Autolink or HTML
     return Some(self.read_autolink())
   }
-
   if c == '{' {
     // Expression in text
     let start = self.pos

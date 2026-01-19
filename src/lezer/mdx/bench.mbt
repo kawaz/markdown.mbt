@@ -54,7 +54,9 @@ fn generate_mdx_doc(imports : Int, headings : Int, components : Int) -> String {
     buf.write_string("Some **bold** and *italic* text.\n\n")
   }
   for i = 0; i < components; i = i + 1 {
-    buf.write_string("<Component\{i} prop\{i}=\"value\{i}\" onClick={{handler}}>Content \{i}</Component\{i}>\n\n")
+    buf.write_string(
+      "<Component\{i} prop\{i}=\"value\{i}\" onClick={{handler}}>Content \{i}</Component\{i}>\n\n",
+    )
   }
   buf.to_string()
 }

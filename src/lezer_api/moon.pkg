@@ -1,8 +1,7 @@
-{
-  "import": [
-    "mizchi/markdown/lezer/shiki"
-  ],
-  "link": {
+import { "mizchi/markdown/lezer/shiki" }
+
+options(
+  link: {
     "js": {
       "exports": [
         "highlight_typescript",
@@ -11,8 +10,8 @@
         "highlight_html",
         "highlight_css",
         "highlight_bash",
-        "highlight_rust"
-      ]
-    }
-  }
-}
+        "highlight_rust",
+      ],
+    },
+  },
+)

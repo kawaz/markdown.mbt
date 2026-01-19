@@ -1,8 +1,7 @@
-{
-  "import": [
-    "mizchi/markdown"
-  ],
-  "link": {
+import { "mizchi/markdown" }
+
+options(
+  link: {
     "js": {
       "exports": [
         "md_parse_to_ast",
@@ -15,8 +14,8 @@
         "md_serialize",
         "md_parse_with_source",
         "md_parse_incremental",
-        "md_free"
-      ]
+        "md_free",
+      ],
     },
     "wasm-gc": {
       "exports": [
@@ -30,8 +29,8 @@
         "md_serialize",
         "md_parse_with_source",
         "md_parse_incremental",
-        "md_free"
-      ]
-    }
-  }
-}
+        "md_free",
+      ],
+    },
+  },
+)

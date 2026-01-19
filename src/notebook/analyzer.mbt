@@ -1,21 +1,26 @@
 ///| Dependency Analyzer
+
 ///|
+
 ///| Build dependency graph from cells and compute execution order
+
 ///| Based on marimo's reactive execution model
 
 // =============================================================================
 // Dependency Graph Building
 // =============================================================================
 
-///| Build dependency graph from cells
+///|
+/// Build dependency graph from cells
 pub fn build_dependency_graph(cells : Array[Cell]) -> DependencyGraph {
   build_dependency_graph_with_cell_deps(cells, {})
 }
 
-///| Build dependency graph with explicit cell dependencies
+///|
+/// Build dependency graph with explicit cell dependencies
 pub fn build_dependency_graph_with_cell_deps(
   cells : Array[Cell],
-  cell_deps : Map[String, Array[String]]
+  cell_deps : Map[String, Array[String]],
 ) -> DependencyGraph {
   let graph = DependencyGraph::new()
 
@@ -47,17 +52,18 @@ pub fn build_dependency_graph_with_cell_deps(
           break
         }
       }
-
       if dep_exists {
         // Add edge from dependency to this cell
         // Use special variable name to indicate cell dependency
-        let edge_exists = graph.edges.iter().any(
-          fn(e) { e.from == dep_cell_id && e.to == cell_id },
-        )
+        let edge_exists = graph.edges
+          .iter()
+          .any(fn(e) { e.from == dep_cell_id && e.to == cell_id })
         if not(edge_exists) {
-          graph.edges.push(
-            { from: dep_cell_id, to: cell_id, variable: "@cell:" + dep_cell_id },
-          )
+          graph.edges.push({
+            from: dep_cell_id,
+            to: cell_id,
+            variable: "@cell:" + dep_cell_id,
+          })
         }
       }
     }
@@ -65,11 +71,11 @@ pub fn build_dependency_graph_with_cell_deps(
 
   // Compute topological order
   graph.execution_order = topological_sort(graph)
-
   graph
 }
 
-///| Topological sort using Kahn's algorithm
+///|
+/// Topological sort using Kahn's algorithm
 fn topological_sort(graph : DependencyGraph) -> Array[String] {
   let in_degree : Map[String, Int] = {}
   let result : Array[String] = []
@@ -107,7 +113,6 @@ fn topological_sort(graph : DependencyGraph) -> Array[String] {
       }
     }
   }
-
   result
 }
 
@@ -115,18 +120,17 @@ fn topological_sort(graph : DependencyGraph) -> Array[String] {
 // Cycle Detection
 // =============================================================================
 
-///| Check for circular dependencies
+///|
+/// Check for circular dependencies
 pub fn detect_cycles(graph : DependencyGraph) -> Array[Array[String]] {
   let cycles : Array[Array[String]] = []
   let visited : Map[String, Bool] = {}
   let rec_stack : Map[String, Bool] = {}
   let path : Array[String] = []
-
   fn dfs(node : String) -> Bool {
     visited[node] = true
     rec_stack[node] = true
     path.push(node)
-
     for edge in graph.edges {
       if edge.from == node {
         let neighbor = edge.to
@@ -152,7 +156,6 @@ pub fn detect_cycles(graph : DependencyGraph) -> Array[Array[String]] {
         }
       }
     }
-
     let _ = path.pop()
     rec_stack[node] = false
     false
@@ -161,9 +164,9 @@ pub fn detect_cycles(graph : DependencyGraph) -> Array[Array[String]] {
   for id, _ in graph.cells {
     if not(visited.get(id).unwrap_or(false)) {
       let _ = dfs(id)
+
     }
   }
-
   cycles
 }
 
@@ -171,14 +174,14 @@ pub fn detect_cycles(graph : DependencyGraph) -> Array[Array[String]] {
 // Stale Detection
 // =============================================================================
 
-///| Get cells that need re-execution after a cell changes
+///|
+/// Get cells that need re-execution after a cell changes
 pub fn get_stale_cells(
   graph : DependencyGraph,
-  changed_cell_id : String
+  changed_cell_id : String,
 ) -> Array[String] {
   let stale : Array[String] = []
   let visited : Map[String, Bool] = {}
-
   fn mark_stale(cell_id : String) {
     if visited.get(cell_id).unwrap_or(false) {
       return
@@ -200,7 +203,6 @@ pub fn get_stale_cells(
       mark_stale(edge.to)
     }
   }
-
   stale
 }
 
@@ -209,15 +211,25 @@ pub fn get_stale_cells(
 // =============================================================================
 
 ///| Analyze cell source to extract defined and referenced variables
-///| This is a simplified version - real implementation would use proper parsing
-pub fn analyze_cell_variables(source : String, language : String) -> (Array[String], Array[String]) {
+
+///|
+/// This is a simplified version - real implementation would use proper parsing
+pub fn analyze_cell_variables(
+  source : String,
+  language : String,
+) -> (Array[String], Array[String]) {
   let (defines, _, references) = analyze_cell_variables_full(source, language)
   (defines, references)
 }
 
 ///| Analyze cell source to extract defines, exports, and references
-///| Returns (defines, exports, references)
-pub fn analyze_cell_variables_full(source : String, language : String) -> (Array[String], Array[String], Array[String]) {
+
+///|
+/// Returns (defines, exports, references)
+pub fn analyze_cell_variables_full(
+  source : String,
+  language : String,
+) -> (Array[String], Array[String], Array[String]) {
   match language {
     "moonbit" => analyze_moonbit_variables(source)
     "javascript" | "js" => {
@@ -230,9 +242,14 @@ pub fn analyze_cell_variables_full(source : String, language : String) -> (Array
 }
 
 ///| Analyze MoonBit code for variable definitions, exports, and references
+
 ///| Uses moonbitlang/parser for accurate parsing
-///| Returns (defines, exports, references)
-fn analyze_moonbit_variables(source : String) -> (Array[String], Array[String], Array[String]) {
+
+///|
+/// Returns (defines, exports, references)
+fn analyze_moonbit_variables(
+  source : String,
+) -> (Array[String], Array[String], Array[String]) {
   let defines : Array[String] = []
   let exports : Array[String] = []
   let references : Array[String] = []
@@ -268,17 +285,17 @@ fn analyze_moonbit_variables(source : String) -> (Array[String], Array[String], 
             let local_bindings = defines.copy()
             // Add function parameters to local scope
             match fun_decl.decl_params {
-              Some(params) => {
+              Some(params) =>
                 params.each(fn(param) {
                   match param {
                     Positional(binder~, ..) => local_bindings.push(binder.name)
                     Labelled(binder~, ..) => local_bindings.push(binder.name)
                     Optional(binder~, ..) => local_bindings.push(binder.name)
-                    QuestionOptional(binder~, ..) => local_bindings.push(binder.name)
+                    QuestionOptional(binder~, ..) =>
+                      local_bindings.push(binder.name)
                     DiscardPositional(..) => ()
                   }
                 })
-              }
               None => ()
             }
             extract_refs_from_expr(expr, local_bindings, references)
@@ -304,9 +321,7 @@ fn analyze_moonbit_variables(source : String) -> (Array[String], Array[String], 
           }
         }
       }
-      TopExpr(expr~, ..) => {
-        extract_refs_from_expr(expr, defines, references)
-      }
+      TopExpr(expr~, ..) => extract_refs_from_expr(expr, defines, references)
       _ => ()
     }
   }
@@ -318,16 +333,17 @@ fn analyze_moonbit_variables(source : String) -> (Array[String], Array[String], 
       unique_refs.push(r)
     }
   }
-
   (defines, exports, unique_refs)
 }
 
 ///| Extract variable references from an expression
-///| local_bindings tracks variables bound in the current scope
+
+///|
+/// local_bindings tracks variables bound in the current scope
 fn extract_refs_from_expr(
   expr : @syntax.Expr,
   local_bindings : Array[String],
-  refs : Array[String]
+  refs : Array[String],
 ) -> Unit {
   match expr {
     Ident(id~, ..) => {
@@ -347,22 +363,19 @@ fn extract_refs_from_expr(
       extract_refs_from_expr(lhs, local_bindings, refs)
       extract_refs_from_expr(rhs, local_bindings, refs)
     }
-    Unary(expr~, ..) => {
-      extract_refs_from_expr(expr, local_bindings, refs)
-    }
-    Array(exprs~, ..) => {
+    Unary(expr~, ..) => extract_refs_from_expr(expr, local_bindings, refs)
+    Array(exprs~, ..) =>
       for e in exprs {
         extract_refs_from_expr(e, local_bindings, refs)
       }
-    }
-    ArraySpread(elems~, ..) => {
+    ArraySpread(elems~, ..) =>
       for elem in elems {
         match elem {
           Regular(e) => extract_refs_from_expr(e, local_bindings, refs)
-          Spread(expr~, ..) => extract_refs_from_expr(expr, local_bindings, refs)
+          Spread(expr~, ..) =>
+            extract_refs_from_expr(expr, local_bindings, refs)
         }
       }
-    }
     ArrayGet(array~, index~, ..) => {
       extract_refs_from_expr(array, local_bindings, refs)
       extract_refs_from_expr(index, local_bindings, refs)
@@ -372,11 +385,10 @@ fn extract_refs_from_expr(
       extract_refs_from_expr(index, local_bindings, refs)
       extract_refs_from_expr(value, local_bindings, refs)
     }
-    Tuple(exprs~, ..) => {
+    Tuple(exprs~, ..) =>
       for e in exprs {
         extract_refs_from_expr(e, local_bindings, refs)
       }
-    }
     If(cond~, ifso~, ifnot~, ..) => {
       extract_refs_from_expr(cond, local_bindings, refs)
       extract_refs_from_expr(ifso, local_bindings, refs)
@@ -406,9 +418,7 @@ fn extract_refs_from_expr(
       extract_refs_from_func(func, new_bindings, refs)
       extract_refs_from_expr(body, new_bindings, refs)
     }
-    Function(func~, ..) => {
-      extract_refs_from_func(func, local_bindings, refs)
-    }
+    Function(func~, ..) => extract_refs_from_func(func, local_bindings, refs)
     Sequence(exprs~, last_expr~, ..) => {
       for e in exprs {
         extract_refs_from_expr(e, local_bindings, refs)
@@ -431,54 +441,45 @@ fn extract_refs_from_expr(
         None => ()
       }
     }
-    Field(record~, ..) => {
-      extract_refs_from_expr(record, local_bindings, refs)
-    }
+    Field(record~, ..) => extract_refs_from_expr(record, local_bindings, refs)
     DotApply(self~, args~, ..) => {
       extract_refs_from_expr(self, local_bindings, refs)
       for arg in args {
         extract_refs_from_expr(arg.value, local_bindings, refs)
       }
     }
-    Record(fields~, ..) => {
+    Record(fields~, ..) =>
       for field in fields {
         extract_refs_from_expr(field.expr, local_bindings, refs)
       }
-    }
     RecordUpdate(record~, fields~, ..) => {
       extract_refs_from_expr(record, local_bindings, refs)
       for field in fields {
         extract_refs_from_expr(field.expr, local_bindings, refs)
       }
     }
-    Assign(expr~, ..) => {
-      extract_refs_from_expr(expr, local_bindings, refs)
-    }
-    Return(return_value~, ..) => {
+    Assign(expr~, ..) => extract_refs_from_expr(expr, local_bindings, refs)
+    Return(return_value~, ..) =>
       match return_value {
         Some(e) => extract_refs_from_expr(e, local_bindings, refs)
         None => ()
       }
-    }
-    Constraint(expr~, ..) => {
-      extract_refs_from_expr(expr, local_bindings, refs)
-    }
+    Constraint(expr~, ..) => extract_refs_from_expr(expr, local_bindings, refs)
     Pipe(lhs~, rhs~, ..) => {
       extract_refs_from_expr(lhs, local_bindings, refs)
       extract_refs_from_expr(rhs, local_bindings, refs)
     }
-    Group(expr~, ..) => {
-      extract_refs_from_expr(expr, local_bindings, refs)
-    }
+    Group(expr~, ..) => extract_refs_from_expr(expr, local_bindings, refs)
     _ => ()
   }
 }
 
-///| Extract references from a function
+///|
+/// Extract references from a function
 fn extract_refs_from_func(
   func : @syntax.Func,
   local_bindings : Array[String],
-  refs : Array[String]
+  refs : Array[String],
 ) -> Unit {
   match func {
     Lambda(parameters~, body~, ..) => {
@@ -495,7 +496,7 @@ fn extract_refs_from_func(
       }
       extract_refs_from_expr(body, new_bindings, refs)
     }
-    Match(cases~, ..) => {
+    Match(cases~, ..) =>
       // For fn { pattern => expr } style
       for case in cases {
         let new_bindings = local_bindings.copy()
@@ -504,40 +505,34 @@ fn extract_refs_from_func(
         }
         extract_refs_from_expr(case.body, new_bindings, refs)
       }
-    }
   }
 }
 
-///| Extract binding names from a pattern
+///|
+/// Extract binding names from a pattern
 fn extract_bindings_from_pattern(
   pattern : @syntax.Pattern,
-  bindings : Array[String]
+  bindings : Array[String],
 ) -> Unit {
   match pattern {
     Var(binder) => bindings.push(binder.name)
-    Tuple(pats~, ..) => {
+    Tuple(pats~, ..) =>
       for p in pats {
         extract_bindings_from_pattern(p, bindings)
       }
-    }
-    Constr(args~, ..) => {
+    Constr(args~, ..) =>
       match args {
-        Some(arg_list) => {
+        Some(arg_list) =>
           for arg in arg_list {
             extract_bindings_from_pattern(arg.pat, bindings)
           }
-        }
         None => ()
       }
-    }
-    Record(fields~, ..) => {
+    Record(fields~, ..) =>
       for field in fields {
         extract_bindings_from_pattern(field.pattern, bindings)
       }
-    }
-    Constraint(pat~, ..) => {
-      extract_bindings_from_pattern(pat, bindings)
-    }
+    Constraint(pat~, ..) => extract_bindings_from_pattern(pat, bindings)
     Alias(pat~, alias_~, ..) => {
       bindings.push(alias_.name)
       extract_bindings_from_pattern(pat, bindings)
@@ -546,21 +541,24 @@ fn extract_bindings_from_pattern(
       // In an or-pattern, bindings should be the same in both branches
       // We just extract from the first one
       extract_bindings_from_pattern(pat1, bindings)
-      let _ = pat2  // Acknowledge pat2 is intentionally unused
+      let _ = pat2
+      // Acknowledge pat2 is intentionally unused
     }
     _ => ()
   }
 }
 
-///| Get variable name from Var
+///|
+/// Get variable name from Var
 fn get_var_name(v : @syntax.Var) -> String {
   match v.name {
     Ident(name~) => name
-    Dot(id~, ..) => id  // Use the identifier part, not the package
+    Dot(id~, ..) => id // Use the identifier part, not the package
   }
 }
 
-///| Check if visibility is pub
+///|
+/// Check if visibility is pub
 fn is_pub_visibility(vis : @syntax.Visibility) -> Bool {
   match vis {
     Pub(..) => true
@@ -568,11 +566,11 @@ fn is_pub_visibility(vis : @syntax.Visibility) -> Bool {
   }
 }
 
-///| Analyze JavaScript code for variable definitions and references
+///|
+/// Analyze JavaScript code for variable definitions and references
 fn analyze_js_variables(source : String) -> (Array[String], Array[String]) {
   let defines : Array[String] = []
   let references : Array[String] = []
-
   let lines = split_lines(source)
   for line in lines {
     let trimmed = line.trim_start(chars=" \t").to_string()
@@ -580,7 +578,10 @@ fn analyze_js_variables(source : String) -> (Array[String], Array[String]) {
     // const/let/var bindings
     for prefix in ["const ", "let ", "var "] {
       if trimmed.has_prefix(prefix) {
-        let rest = trimmed.unsafe_substring(start=prefix.length(), end=trimmed.length())
+        let rest = trimmed.unsafe_substring(
+          start=prefix.length(),
+          end=trimmed.length(),
+        )
         let name = extract_identifier(rest)
         if name.length() > 0 {
           defines.push(name)
@@ -597,15 +598,14 @@ fn analyze_js_variables(source : String) -> (Array[String], Array[String]) {
       }
     }
   }
-
   (defines, references)
 }
 
-///| Extract identifier from string start
+///|
+/// Extract identifier from string start
 fn extract_identifier(s : String) -> String {
   let buf = StringBuilder::new()
   let chars = s.to_array()
-
   for i, c in chars {
     if i == 0 {
       if is_ident_start(c) {
@@ -619,26 +619,27 @@ fn extract_identifier(s : String) -> String {
       break
     }
   }
-
   buf.to_string()
 }
 
-///| Check if character can start an identifier
+///|
+/// Check if character can start an identifier
 fn is_ident_start(c : Char) -> Bool {
   (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
 }
 
-///| Check if character can be part of an identifier
+///|
+/// Check if character can be part of an identifier
 fn is_ident_char(c : Char) -> Bool {
   is_ident_start(c) || (c >= '0' && c <= '9')
 }
 
-///| Split string into lines
+///|
+/// Split string into lines
 fn split_lines(s : String) -> Array[String] {
   let result : Array[String] = []
   let buf = StringBuilder::new()
   let chars = s.to_array()
-
   for c in chars {
     if c == '\n' {
       result.push(buf.to_string())
@@ -647,11 +648,9 @@ fn split_lines(s : String) -> Array[String] {
       buf.write_char(c)
     }
   }
-
   if buf.to_string().length() > 0 {
     result.push(buf.to_string())
   }
-
   result
 }
 
@@ -659,9 +658,10 @@ fn split_lines(s : String) -> Array[String] {
 // Duplicate Definition Check
 // =============================================================================
 
-///| Check for duplicate variable definitions (marimo's single-definition rule)
+///|
+/// Check for duplicate variable definitions (marimo's single-definition rule)
 pub fn check_duplicate_definitions(
-  cells : Array[Cell]
+  cells : Array[Cell],
 ) -> Array[(String, Array[String])] {
   let var_to_cells : Map[String, Array[String]] = {}
 
@@ -682,6 +682,5 @@ pub fn check_duplicate_definitions(
       duplicates.push((var_name, cell_ids))
     }
   }
-
   duplicates
 }

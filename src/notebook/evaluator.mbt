@@ -1,13 +1,17 @@
 ///| Code Evaluator Interface
+
 ///|
+
 ///| Interface for evaluating code cells in various languages
+
 ///| Actual evaluation would be handled by external runtimes
 
 // =============================================================================
 // Evaluator Trait
 // =============================================================================
 
-///| Interface for code evaluators
+///|
+/// Interface for code evaluators
 pub trait Evaluator {
   /// Evaluate code and return output
   eval(Self, source : String, context : EvalContext) -> CellOutput
@@ -23,7 +27,8 @@ pub trait Evaluator {
 // Evaluation Result
 // =============================================================================
 
-///| Result of cell evaluation
+///|
+/// Result of cell evaluation
 pub(all) struct EvalResult {
   /// The cell that was evaluated
   cell_id : String
@@ -44,7 +49,8 @@ pub fn EvalResult::new(cell_id : String, output : CellOutput) -> EvalResult {
 // Evaluation Engine
 // =============================================================================
 
-///| Engine for evaluating notebook cells
+///|
+/// Engine for evaluating notebook cells
 pub(all) struct EvalEngine {
   /// Available evaluators by language
   evaluators : Map[String, (String, EvalContext) -> CellOutput]
@@ -57,16 +63,18 @@ pub fn EvalEngine::new() -> EvalEngine {
   { evaluators: {}, context: EvalContext::new() }
 }
 
-///| Register an evaluator for a language
+///|
+/// Register an evaluator for a language
 pub fn EvalEngine::register(
   self : EvalEngine,
   language : String,
-  evaluator : (String, EvalContext) -> CellOutput
+  evaluator : (String, EvalContext) -> CellOutput,
 ) -> Unit {
   self.evaluators[language] = evaluator
 }
 
-///| Evaluate a single cell
+///|
+/// Evaluate a single cell
 pub fn EvalEngine::eval_cell(self : EvalEngine, cell : Cell) -> EvalResult {
   let evaluator = self.evaluators.get(cell.language)
   let output = match evaluator {
@@ -76,10 +84,11 @@ pub fn EvalEngine::eval_cell(self : EvalEngine, cell : Cell) -> EvalResult {
   EvalResult::new(cell.id, output)
 }
 
-///| Evaluate all cells in a notebook in dependency order
+///|
+/// Evaluate all cells in a notebook in dependency order
 pub fn EvalEngine::eval_notebook(
   self : EvalEngine,
-  notebook : Notebook
+  notebook : Notebook,
 ) -> Array[EvalResult] {
   let results : Array[EvalResult] = []
 
@@ -96,20 +105,22 @@ pub fn EvalEngine::eval_notebook(
       self.context.variables[name] = value
       result.exports[name] = value
     }
-
     results.push(result)
   }
-
   results
 }
 
 ///| Extract exported values from cell output
-///| The output may be Json containing { exports: { name: value } }
-fn extract_exports_from_output(output : CellOutput, export_names : Array[String]) -> Map[String, String] {
-  let exports : Map[String, String] = {}
 
+///|
+/// The output may be Json containing { exports: { name: value } }
+fn extract_exports_from_output(
+  output : CellOutput,
+  export_names : Array[String],
+) -> Map[String, String] {
+  let exports : Map[String, String] = {}
   match output {
-    Json(json_str) => {
+    Json(json_str) =>
       // Try to extract exports object from JSON result
       for name in export_names {
         match extract_nested_json_field(json_str, "exports", name) {
@@ -117,15 +128,18 @@ fn extract_exports_from_output(output : CellOutput, export_names : Array[String]
           None => ()
         }
       }
-    }
     _ => ()
   }
-
   exports
 }
 
-///| Extract nested field from JSON: obj.field1.field2
-fn extract_nested_json_field(json : String, parent : String, child : String) -> String? {
+///|
+/// Extract nested field from JSON: obj.field1.field2
+fn extract_nested_json_field(
+  json : String,
+  parent : String,
+  child : String,
+) -> String? {
   // Find exports object
   let exports_pattern = "\"" + parent + "\":"
   match json.find(exports_pattern) {
@@ -147,7 +161,8 @@ fn extract_nested_json_field(json : String, parent : String, child : String) -> 
   }
 }
 
-///| Extract JSON value starting at given position
+///|
+/// Extract JSON value starting at given position
 fn extract_json_value_at(json : String, start : Int) -> String? {
   let chars = json.to_array()
   let mut pos = start
@@ -156,11 +171,9 @@ fn extract_json_value_at(json : String, start : Int) -> String? {
   while pos < chars.length() && (chars[pos] == ' ' || chars[pos] == '\t') {
     pos = pos + 1
   }
-
   if pos >= chars.length() {
     return None
   }
-
   let c = chars[pos]
 
   // String value
@@ -183,7 +196,13 @@ fn extract_json_value_at(json : String, start : Int) -> String? {
   if (c >= '0' && c <= '9') || c == '-' {
     let buf = StringBuilder::new()
     while pos < chars.length() &&
-      ((chars[pos] >= '0' && chars[pos] <= '9') || chars[pos] == '.' || chars[pos] == '-' || chars[pos] == 'e' || chars[pos] == 'E') {
+          (
+            (chars[pos] >= '0' && chars[pos] <= '9') ||
+            chars[pos] == '.' ||
+            chars[pos] == '-' ||
+            chars[pos] == 'e' ||
+            chars[pos] == 'E'
+          ) {
       buf.write_char(chars[pos])
       pos = pos + 1
     }
@@ -200,15 +219,15 @@ fn extract_json_value_at(json : String, start : Int) -> String? {
   if json.unsafe_substring(start=pos, end=pos + 4) == "null" {
     return Some("null")
   }
-
   None
 }
 
-///| Re-evaluate stale cells after a change
+///|
+/// Re-evaluate stale cells after a change
 pub fn EvalEngine::eval_stale(
   self : EvalEngine,
   notebook : Notebook,
-  changed_cell_id : String
+  changed_cell_id : String,
 ) -> Array[EvalResult] {
   let results : Array[EvalResult] = []
   let stale_ids = get_stale_cells(notebook.graph, changed_cell_id)
@@ -231,7 +250,6 @@ pub fn EvalEngine::eval_stale(
       results.push(result)
     }
   }
-
   results
 }
 
@@ -239,7 +257,8 @@ pub fn EvalEngine::eval_stale(
 // Output Rendering
 // =============================================================================
 
-///| Render cell output to HTML
+///|
+/// Render cell output to HTML
 pub fn render_output_to_html(output : CellOutput) -> String {
   match output {
     Text(s) => "<pre class=\"cell-output text\">\{escape_html(s)}</pre>"
@@ -258,7 +277,8 @@ pub fn render_output_to_html(output : CellOutput) -> String {
   }
 }
 
-///| Escape HTML special characters
+///|
+/// Escape HTML special characters
 fn escape_html(s : String) -> String {
   let buf = StringBuilder::new()
   let chars = s.to_array()
