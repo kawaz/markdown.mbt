@@ -7,12 +7,15 @@
 pub struct TuiOptions {
   /// Custom code block highlighter
   code_highlighter : ((@markdown.CodeBlockInfo, String) -> String)?
+  /// Custom string width calculator for proper CJK/emoji support.
+  /// When None, falls back to String.iter().count() (codepoint count).
+  str_width : ((String) -> Int)?
 }
 
 ///|
 /// Create default TUI options
 pub fn TuiOptions::default() -> TuiOptions {
-  { code_highlighter: None }
+  { code_highlighter: None, str_width: None }
 }
 
 ///|
@@ -20,7 +23,7 @@ pub fn TuiOptions::default() -> TuiOptions {
 pub fn TuiOptions::with_highlighter(
   highlighter : (@markdown.CodeBlockInfo, String) -> String,
 ) -> TuiOptions {
-  { code_highlighter: Some(highlighter) }
+  { code_highlighter: Some(highlighter), str_width: None }
 }
 
 ///|
@@ -35,7 +38,16 @@ pub fn TuiOptions::with_simple_highlighter(
     ) -> String {
       highlighter(info.lang, code)
     }),
+    str_width: None,
   }
+}
+
+///|
+/// Create TUI options with custom string width calculator
+pub fn TuiOptions::with_str_width(
+  f : (String) -> Int,
+) -> TuiOptions {
+  { code_highlighter: None, str_width: Some(f) }
 }
 
 ///|
@@ -76,8 +88,16 @@ fn render_block_tui_with_options(
           buf.write_string("\n\n")
         }
         None =>
-          // Use default rendering
-          render_fenced_code_default(info, code, buf)
+          // Use default rendering with optional str_width
+          match options.str_width {
+            Some(f) => render_fenced_code_default(info, code, buf, str_width=f)
+            None => render_fenced_code_default(info, code, buf)
+          }
+      }
+    @markdown.Block::Table(header~, rows~, ..) =>
+      match options.str_width {
+        Some(f) => render_table_tui(header, rows, buf, str_width=f)
+        None => render_table_tui(header, rows, buf)
       }
     @markdown.Block::Paragraph(children~, ..) => {
       render_inlines_tui(children, buf)
@@ -146,19 +166,28 @@ fn render_fenced_code_default(
   info : String,
   code : String,
   buf : StringBuilder,
+  str_width? : (String) -> Int,
 ) -> Unit {
+  // Helper: compute display width of a string
+  fn width(s : String) -> Int {
+    match str_width {
+      Some(f) => f(s)
+      None => s.iter().count()
+    }
+  }
+
   // Calculate max line width
   let lines = code.split("\n").collect()
   let mut max_width = 0
   for i, line in lines {
     if i < lines.length() - 1 || not(line.to_string().is_empty()) {
-      let w = line.to_string().iter().count()
+      let w = width(line.to_string())
       if w > max_width {
         max_width = w
       }
     }
   }
-  let info_width = if info.is_empty() { 0 } else { info.iter().count() + 4 }
+  let info_width = if info.is_empty() { 0 } else { width(info) + 4 }
   if info_width > max_width {
     max_width = info_width
   }
@@ -172,7 +201,7 @@ fn render_fenced_code_default(
     buf.write_string("┌─ ")
     buf.write_string(info)
     buf.write_string(" ")
-    let remaining = max_width - info.iter().count() - 1
+    let remaining = max_width - width(info) - 1
     buf.write_string("─".repeat(remaining))
     buf.write_string("┐")
   } else {
@@ -193,7 +222,7 @@ fn render_fenced_code_default(
       buf.write_string(" ")
       let line_str = line.to_string()
       buf.write_string(line_str)
-      let padding = max_width - line_str.iter().count()
+      let padding = max_width - width(line_str)
       buf.write_string(" ".repeat(padding))
       buf.write_string(reset)
       buf.write_string(dim)
