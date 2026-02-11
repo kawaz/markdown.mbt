@@ -158,82 +158,8 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
         buf.write_string("\n")
       }
     }
-    @markdown.Block::Table(header~, rows~, ..) => {
-      // Calculate column widths
-      let col_count = header.length()
-      let widths : Array[Int] = Array::make(col_count, 0)
-
-      // Measure header widths
-      for i, cell in header {
-        let w = measure_inlines_width(cell.children)
-        if w > widths[i] {
-          widths[i] = w
-        }
-      }
-
-      // Measure row widths
-      for row in rows {
-        for i, cell in row {
-          if i < col_count {
-            let w = measure_inlines_width(cell.children)
-            if w > widths[i] {
-              widths[i] = w
-            }
-          }
-        }
-      }
-
-      // Header
-      buf.write_string(bold)
-      buf.write_string("│")
-      for i, cell in header {
-        buf.write_string(" ")
-        let cell_buf = StringBuilder::new()
-        render_inlines_tui_raw(cell.children, cell_buf)
-        let content = cell_buf.to_string()
-        buf.write_string(content)
-        let padding = widths[i] - measure_inlines_width(cell.children)
-        buf.write_string(" ".repeat(padding))
-        buf.write_string(" │")
-      }
-      buf.write_string(reset)
-      buf.write_string("\n")
-
-      // Separator
-      buf.write_string(dim)
-      buf.write_string("├")
-      for i, _ in header {
-        if i > 0 {
-          buf.write_string("┼")
-        }
-        buf.write_string("─".repeat(widths[i] + 2))
-      }
-      buf.write_string("┤")
-      buf.write_string(reset)
-      buf.write_string("\n")
-
-      // Rows
-      for row in rows {
-        buf.write_string("│")
-        for i = 0; i < col_count; i = i + 1 {
-          buf.write_string(" ")
-          if i < row.length() {
-            let cell = row[i]
-            let cell_buf = StringBuilder::new()
-            render_inlines_tui_raw(cell.children, cell_buf)
-            let content = cell_buf.to_string()
-            buf.write_string(content)
-            let padding = widths[i] - measure_inlines_width(cell.children)
-            buf.write_string(" ".repeat(padding))
-          } else {
-            buf.write_string(" ".repeat(widths[i]))
-          }
-          buf.write_string(" │")
-        }
-        buf.write_string("\n")
-      }
-      buf.write_string("\n")
-    }
+    @markdown.Block::Table(header~, rows~, ..) =>
+      render_table_tui(header, rows, buf)
     @markdown.Block::BlankLines(..) => ()
     @markdown.Block::FootnoteDefinition(label~, children~, ..) => {
       buf.write_string(dim)
@@ -251,34 +177,136 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
 
 ///|
 /// Measure the display width of inline elements (excluding ANSI codes)
-fn measure_inlines_width(inlines : Array[@markdown.Inline]) -> Int {
+fn measure_inlines_width(
+  inlines : Array[@markdown.Inline],
+  str_width? : (String) -> Int,
+) -> Int {
   let mut width = 0
   for inline in inlines {
-    width = width + measure_inline_width(inline)
+    width = width + measure_inline_width(inline, str_width?)
   }
   width
 }
 
 ///|
 /// Measure display width of a single inline element
-fn measure_inline_width(inline : @markdown.Inline) -> Int {
+fn measure_inline_width(
+  inline : @markdown.Inline,
+  str_width? : (String) -> Int,
+) -> Int {
+  // Helper: compute display width of a string
+  fn width(s : String) -> Int {
+    match str_width {
+      Some(f) => f(s)
+      None => s.iter().count()
+    }
+  }
+
   match inline {
-    @markdown.Inline::Text(content~, ..) => content.iter().count()
-    @markdown.Inline::Code(content~, ..) => content.iter().count() + 2 // backticks
-    @markdown.Inline::Emphasis(children~, ..) => measure_inlines_width(children)
-    @markdown.Inline::Strong(children~, ..) => measure_inlines_width(children)
+    @markdown.Inline::Text(content~, ..) => width(content)
+    @markdown.Inline::Code(content~, ..) => width(content) + 2 // backticks
+    @markdown.Inline::Emphasis(children~, ..) =>
+      measure_inlines_width(children, str_width?)
+    @markdown.Inline::Strong(children~, ..) =>
+      measure_inlines_width(children, str_width?)
     @markdown.Inline::Strikethrough(children~, ..) =>
-      measure_inlines_width(children)
-    @markdown.Inline::Link(children~, ..) => measure_inlines_width(children)
-    @markdown.Inline::RefLink(children~, ..) => measure_inlines_width(children)
-    @markdown.Inline::Autolink(url~, ..) => url.iter().count()
-    @markdown.Inline::Image(alt~, ..) => alt.iter().count() + 2 // emoji
-    @markdown.Inline::RefImage(alt~, ..) => alt.iter().count() + 2
-    @markdown.Inline::HtmlInline(html~, ..) => html.iter().count()
+      measure_inlines_width(children, str_width?)
+    @markdown.Inline::Link(children~, ..) =>
+      measure_inlines_width(children, str_width?)
+    @markdown.Inline::RefLink(children~, ..) =>
+      measure_inlines_width(children, str_width?)
+    @markdown.Inline::Autolink(url~, ..) => width(url)
+    @markdown.Inline::Image(alt~, ..) => width(alt) + 2 // emoji
+    @markdown.Inline::RefImage(alt~, ..) => width(alt) + 2
+    @markdown.Inline::HtmlInline(html~, ..) => width(html)
     @markdown.Inline::SoftBreak(..) => 0
     @markdown.Inline::HardBreak(..) => 0
-    @markdown.Inline::FootnoteReference(label~, ..) => label.iter().count() + 3 // [^]
+    @markdown.Inline::FootnoteReference(label~, ..) => width(label) + 3 // [^]
   }
+}
+
+///|
+/// Render a table with optional str_width for proper CJK/emoji support
+fn render_table_tui(
+  header : Array[@markdown.TableCell],
+  rows : Array[Array[@markdown.TableCell]],
+  buf : StringBuilder,
+  str_width? : (String) -> Int,
+) -> Unit {
+  // Calculate column widths
+  let col_count = header.length()
+  let widths : Array[Int] = Array::make(col_count, 0)
+
+  // Measure header widths
+  for i, cell in header {
+    let w = measure_inlines_width(cell.children, str_width?)
+    if w > widths[i] {
+      widths[i] = w
+    }
+  }
+
+  // Measure row widths
+  for row in rows {
+    for i, cell in row {
+      if i < col_count {
+        let w = measure_inlines_width(cell.children, str_width?)
+        if w > widths[i] {
+          widths[i] = w
+        }
+      }
+    }
+  }
+
+  // Header
+  buf.write_string(bold)
+  buf.write_string("│")
+  for i, cell in header {
+    buf.write_string(" ")
+    let cell_buf = StringBuilder::new()
+    render_inlines_tui_raw(cell.children, cell_buf)
+    let content = cell_buf.to_string()
+    buf.write_string(content)
+    let padding = widths[i] - measure_inlines_width(cell.children, str_width?)
+    buf.write_string(" ".repeat(padding))
+    buf.write_string(" │")
+  }
+  buf.write_string(reset)
+  buf.write_string("\n")
+
+  // Separator
+  buf.write_string(dim)
+  buf.write_string("├")
+  for i, _ in header {
+    if i > 0 {
+      buf.write_string("┼")
+    }
+    buf.write_string("─".repeat(widths[i] + 2))
+  }
+  buf.write_string("┤")
+  buf.write_string(reset)
+  buf.write_string("\n")
+
+  // Rows
+  for row in rows {
+    buf.write_string("│")
+    for i = 0; i < col_count; i = i + 1 {
+      buf.write_string(" ")
+      if i < row.length() {
+        let cell = row[i]
+        let cell_buf = StringBuilder::new()
+        render_inlines_tui_raw(cell.children, cell_buf)
+        let content = cell_buf.to_string()
+        buf.write_string(content)
+        let padding = widths[i] - measure_inlines_width(cell.children, str_width?)
+        buf.write_string(" ".repeat(padding))
+      } else {
+        buf.write_string(" ".repeat(widths[i]))
+      }
+      buf.write_string(" │")
+    }
+    buf.write_string("\n")
+  }
+  buf.write_string("\n")
 }
 
 ///|
