@@ -238,4 +238,5 @@ fn render_fenced_code_default(
   buf.write_string("─".repeat(max_width + 2))
   buf.write_string("┘")
   buf.write_string(reset)
+  buf.write_string("\n\n")
 }
