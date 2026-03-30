@@ -28,7 +28,7 @@ pub fn get_bool(fm : @md.Frontmatter, key : String) -> Bool? {
 /// Get an integer value from frontmatter entries
 pub fn get_int(fm : @md.Frontmatter, key : String) -> Int? {
   match get_string(fm, key) {
-    Some(s) => Some(@strconv.parse_int(s)) catch { _ => None }
+    Some(s) => Some(@string.parse_int(s)) catch { _ => None }
     None => None
   }
 }
@@ -42,7 +42,7 @@ pub fn get_list(fm : @md.Frontmatter, key : String) -> Array[String] {
       let parts = s.split(",")
       for part in parts {
         let trimmed = part.to_string().trim(chars=" \t\n\r").to_string()
-        if not(trimmed.is_empty()) {
+        if !trimmed.is_empty() {
           result.push(trimmed)
         }
       }
