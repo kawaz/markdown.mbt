@@ -153,7 +153,7 @@ pub fn Notebook::validate(self : Notebook) -> Array[NotebookError] {
           break
         }
       }
-      if not(found) {
+      if !found {
         errors.push(UndefinedReference(cell.id, ref_var))
       }
     }

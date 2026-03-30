@@ -97,7 +97,7 @@ pub fn CrdtDocument::delete(self : CrdtDocument, idx : Int) -> Unit {
 pub fn CrdtDocument::get_text(self : CrdtDocument) -> String {
   let buf = StringBuilder::new()
   for run in self.runs {
-    if not(run.deleted) {
+    if !run.deleted {
       buf.write_string(run.content)
     }
   }
@@ -109,7 +109,7 @@ pub fn CrdtDocument::get_text(self : CrdtDocument) -> String {
 pub fn CrdtDocument::active_count(self : CrdtDocument) -> Int {
   let mut count = 0
   for run in self.runs {
-    if not(run.deleted) {
+    if !run.deleted {
       count += 1
     }
   }

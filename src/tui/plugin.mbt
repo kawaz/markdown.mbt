@@ -44,9 +44,7 @@ pub fn TuiOptions::with_simple_highlighter(
 
 ///|
 /// Create TUI options with custom string width calculator
-pub fn TuiOptions::with_str_width(
-  f : (String) -> Int,
-) -> TuiOptions {
+pub fn TuiOptions::with_str_width(f : (String) -> Int) -> TuiOptions {
   { code_highlighter: None, str_width: Some(f) }
 }
 
@@ -180,7 +178,7 @@ fn render_fenced_code_default(
   let lines = code.split("\n").collect()
   let mut max_width = 0
   for i, line in lines {
-    if i < lines.length() - 1 || not(line.to_string().is_empty()) {
+    if i < lines.length() - 1 || !line.to_string().is_empty() {
       let w = width(line.to_string())
       if w > max_width {
         max_width = w
@@ -197,7 +195,7 @@ fn render_fenced_code_default(
 
   // Top border
   buf.write_string(dim)
-  if not(info.is_empty()) {
+  if !info.is_empty() {
     buf.write_string("┌─ ")
     buf.write_string(info)
     buf.write_string(" ")
@@ -214,7 +212,7 @@ fn render_fenced_code_default(
 
   // Code content
   for i, line in lines {
-    if i < lines.length() - 1 || not(line.to_string().is_empty()) {
+    if i < lines.length() - 1 || !line.to_string().is_empty() {
       buf.write_string(dim)
       buf.write_string("│")
       buf.write_string(reset)

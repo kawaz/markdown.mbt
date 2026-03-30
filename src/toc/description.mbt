@@ -21,7 +21,7 @@ pub fn extract_description_from_blocks(
     match block {
       @md.Block::Paragraph(children~, ..) => {
         let text = extract_text_from_inlines(children)
-        if not(text.is_empty()) {
+        if !text.is_empty() {
           return Some(truncate_text(text, max_length))
         }
       }
