@@ -166,26 +166,22 @@ fn render_fenced_code_default(
   buf : StringBuilder,
   str_width? : (String) -> Int,
 ) -> Unit {
-  // Helper: compute display width of a string
-  fn width(s : String) -> Int {
-    match str_width {
-      Some(f) => f(s)
-      None => s.iter().count()
-    }
-  }
-
   // Calculate max line width
   let lines = code.split("\n").collect()
   let mut max_width = 0
   for i, line in lines {
     if i < lines.length() - 1 || !line.to_string().is_empty() {
-      let w = width(line.to_string())
+      let w = compute_str_width(line.to_string(), str_width?)
       if w > max_width {
         max_width = w
       }
     }
   }
-  let info_width = if info.is_empty() { 0 } else { width(info) + 4 }
+  let info_width = if info.is_empty() {
+    0
+  } else {
+    compute_str_width(info, str_width?) + 4
+  }
   if info_width > max_width {
     max_width = info_width
   }
@@ -199,7 +195,7 @@ fn render_fenced_code_default(
     buf.write_string("┌─ ")
     buf.write_string(info)
     buf.write_string(" ")
-    let remaining = max_width - width(info) - 1
+    let remaining = max_width - compute_str_width(info, str_width?) - 1
     buf.write_string("─".repeat(remaining))
     buf.write_string("┐")
   } else {
@@ -220,7 +216,7 @@ fn render_fenced_code_default(
       buf.write_string(" ")
       let line_str = line.to_string()
       buf.write_string(line_str)
-      let padding = max_width - width(line_str)
+      let padding = max_width - compute_str_width(line_str, str_width?)
       buf.write_string(" ".repeat(padding))
       buf.write_string(reset)
       buf.write_string(dim)

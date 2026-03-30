@@ -3,6 +3,15 @@
 ///| Renders markdown AST to terminal with ANSI escape codes
 
 ///|
+/// Compute the display width of a string, using a custom width function if provided.
+fn compute_str_width(s : String, str_width? : (String) -> Int) -> Int {
+  match str_width {
+    Some(f) => f(s)
+    None => s.iter().count()
+  }
+}
+
+///|
 /// Render a document to terminal string
 pub fn render_tui(doc : @markdown.Document) -> String {
   let buf = StringBuilder::new()
@@ -194,17 +203,11 @@ fn measure_inline_width(
   inline : @markdown.Inline,
   str_width? : (String) -> Int,
 ) -> Int {
-  // Helper: compute display width of a string
-  fn width(s : String) -> Int {
-    match str_width {
-      Some(f) => f(s)
-      None => s.iter().count()
-    }
-  }
-
   match inline {
-    @markdown.Inline::Text(content~, ..) => width(content)
-    @markdown.Inline::Code(content~, ..) => width(content) + 2 // backticks
+    @markdown.Inline::Text(content~, ..) =>
+      compute_str_width(content, str_width?)
+    @markdown.Inline::Code(content~, ..) =>
+      compute_str_width(content, str_width?) + 2 // backticks
     @markdown.Inline::Emphasis(children~, ..) =>
       measure_inlines_width(children, str_width?)
     @markdown.Inline::Strong(children~, ..) =>
@@ -215,13 +218,16 @@ fn measure_inline_width(
       measure_inlines_width(children, str_width?)
     @markdown.Inline::RefLink(children~, ..) =>
       measure_inlines_width(children, str_width?)
-    @markdown.Inline::Autolink(url~, ..) => width(url)
-    @markdown.Inline::Image(alt~, ..) => width(alt) + 2 // emoji
-    @markdown.Inline::RefImage(alt~, ..) => width(alt) + 2
-    @markdown.Inline::HtmlInline(html~, ..) => width(html)
+    @markdown.Inline::Autolink(url~, ..) => compute_str_width(url, str_width?)
+    @markdown.Inline::Image(alt~, ..) => compute_str_width(alt, str_width?) + 2 // emoji
+    @markdown.Inline::RefImage(alt~, ..) =>
+      compute_str_width(alt, str_width?) + 2
+    @markdown.Inline::HtmlInline(html~, ..) =>
+      compute_str_width(html, str_width?)
     @markdown.Inline::SoftBreak(..) => 0
     @markdown.Inline::HardBreak(..) => 0
-    @markdown.Inline::FootnoteReference(label~, ..) => width(label) + 3 // [^]
+    @markdown.Inline::FootnoteReference(label~, ..) =>
+      compute_str_width(label, str_width?) + 3 // [^]
   }
 }
 
@@ -237,24 +243,30 @@ fn render_table_tui(
   let col_count = header.length()
   let widths : Array[Int] = Array::make(col_count, 0)
 
-  // Measure header widths
+  // Cache header cell widths
+  let header_widths : Array[Int] = Array::make(col_count, 0)
   for i, cell in header {
     let w = measure_inlines_width(cell.children, str_width?)
+    header_widths[i] = w
     if w > widths[i] {
       widths[i] = w
     }
   }
 
-  // Measure row widths
+  // Cache row cell widths
+  let row_widths : Array[Array[Int]] = []
   for row in rows {
+    let rw : Array[Int] = Array::make(col_count, 0)
     for i, cell in row {
       if i < col_count {
         let w = measure_inlines_width(cell.children, str_width?)
+        rw[i] = w
         if w > widths[i] {
           widths[i] = w
         }
       }
     }
+    row_widths.push(rw)
   }
 
   // Header
@@ -266,7 +278,7 @@ fn render_table_tui(
     render_inlines_tui_raw(cell.children, cell_buf)
     let content = cell_buf.to_string()
     buf.write_string(content)
-    let padding = widths[i] - measure_inlines_width(cell.children, str_width?)
+    let padding = widths[i] - header_widths[i]
     buf.write_string(" ".repeat(padding))
     buf.write_string(" │")
   }
@@ -287,7 +299,7 @@ fn render_table_tui(
   buf.write_string("\n")
 
   // Rows
-  for row in rows {
+  for ri, row in rows {
     buf.write_string("│")
     for i = 0; i < col_count; i = i + 1 {
       buf.write_string(" ")
@@ -297,8 +309,7 @@ fn render_table_tui(
         render_inlines_tui_raw(cell.children, cell_buf)
         let content = cell_buf.to_string()
         buf.write_string(content)
-        let padding = widths[i] -
-          measure_inlines_width(cell.children, str_width?)
+        let padding = widths[i] - row_widths[ri][i]
         buf.write_string(" ".repeat(padding))
       } else {
         buf.write_string(" ".repeat(widths[i]))
