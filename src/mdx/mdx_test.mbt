@@ -148,7 +148,7 @@ test "parse export const" {
   assert_eq(blocks.length(), 1)
   match blocks[0] {
     ExportDecl(kind~, name~, value~, ..) => {
-      assert_eq(kind, ExportKind::Const)
+      assert_true(kind == ExportKind::Const)
       assert_eq(name, Some("title"))
       assert_eq(value, "'Hello'")
     }
@@ -163,7 +163,7 @@ test "parse export default" {
   assert_eq(blocks.length(), 1)
   match blocks[0] {
     ExportDecl(kind~, name~, value~, ..) => {
-      assert_eq(kind, ExportKind::Default)
+      assert_true(kind == ExportKind::Default)
       assert_eq(name, None)
       assert_eq(value, "Layout")
     }
@@ -180,7 +180,7 @@ test "parse export function" {
   assert_eq(blocks.length(), 1)
   match blocks[0] {
     ExportDecl(kind~, name~, ..) => {
-      assert_eq(kind, ExportKind::Function)
+      assert_true(kind == ExportKind::Function)
       assert_eq(name, Some("getLayout"))
     }
     _ => fail("Expected ExportDecl")

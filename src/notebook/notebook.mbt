@@ -191,4 +191,4 @@ pub(all) enum NotebookError {
   CyclicDependency(Array[String])
   /// Reference to undefined variable
   UndefinedReference(String, String)
-} derive(Show)
+} derive(Debug)

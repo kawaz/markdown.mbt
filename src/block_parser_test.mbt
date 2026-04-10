@@ -7,7 +7,7 @@ test "parse heading" {
   match blocks[0] {
     Block::Heading(level~, style~, children~, ..) => {
       inspect(level, content="1")
-      inspect(style, content="Atx")
+      assert_true(style == HeadingStyle::Atx)
       inspect(children.length(), content="1")
       match children[0] {
         Inline::Text(content~, ..) => inspect(content, content="Hello World")
@@ -78,7 +78,7 @@ test "parse fenced code block" {
     Block::FencedCode(info~, code~, fence_marker~, fence_length~, ..) => {
       inspect(info, content="js")
       inspect(code, content="console.log('hello');\n")
-      inspect(fence_marker, content="Backtick")
+      assert_true(fence_marker == FenceMarker::Backtick)
       inspect(fence_length, content="3")
     }
     _ => fail("Expected fenced code")
@@ -91,7 +91,7 @@ test "parse fenced code with tilde" {
   match result.document.children[0] {
     Block::FencedCode(info~, fence_marker~, ..) => {
       inspect(info, content="python")
-      inspect(fence_marker, content="Tilde")
+      assert_true(fence_marker == FenceMarker::Tilde)
     }
     _ => fail("Expected fenced code")
   }
@@ -159,7 +159,7 @@ test "parse bullet list" {
   let result = parse("- Item 1\n- Item 2\n")
   match result.document.children[0] {
     Block::BulletList(marker~, items~, tight~, ..) => {
-      inspect(marker, content="Dash")
+      assert_true(marker == BulletMarker::Dash)
       inspect(items.length(), content="2")
       inspect(tight, content="true")
     }
@@ -173,7 +173,7 @@ test "parse ordered list" {
   match result.document.children[0] {
     Block::OrderedList(start~, delimiter~, items~, ..) => {
       inspect(start, content="1")
-      inspect(delimiter, content="Dot")
+      assert_true(delimiter == OrderedDelimiter::Dot)
       inspect(items.length(), content="2")
     }
     _ => fail("Expected ordered list")
@@ -196,7 +196,7 @@ test "parse setext heading h1" {
   match result.document.children[0] {
     Block::Heading(level~, style~, ..) => {
       inspect(level, content="1")
-      inspect(style, content="Setext")
+      assert_true(style == HeadingStyle::Setext)
     }
     _ => fail("Expected setext heading")
   }
@@ -208,7 +208,7 @@ test "parse setext heading h2" {
   match result.document.children[0] {
     Block::Heading(level~, style~, ..) => {
       inspect(level, content="2")
-      inspect(style, content="Setext")
+      assert_true(style == HeadingStyle::Setext)
     }
     _ => fail("Expected setext heading")
   }
@@ -279,9 +279,9 @@ test "parse table with alignment" {
   let result = parse(source)
   match result.document.children[0] {
     Block::Table(alignments~, ..) => {
-      inspect(alignments[0], content="Left")
-      inspect(alignments[1], content="Center")
-      inspect(alignments[2], content="Right")
+      assert_true(alignments[0] == TableAlign::Left)
+      assert_true(alignments[1] == TableAlign::Center)
+      assert_true(alignments[2] == TableAlign::Right)
     }
     _ => fail("Expected Table")
   }

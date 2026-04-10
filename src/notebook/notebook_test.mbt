@@ -191,7 +191,7 @@ test "parse_code_block_attrs: hidden cell" {
 ///|
 test "parse_code_block_attrs: output format" {
   let (_, attrs) = parse_code_block_attrs("moonbit {:cell=chart :output=html}")
-  assert_eq(attrs.output_format, Html)
+  assert_true(attrs.output_format == Html)
 }
 
 ///|
@@ -254,7 +254,7 @@ test "parse_inline_directive: not recursive" {
 ///|
 test "parse_inline_directive: not an inline" {
   let result = parse_inline_directive("<Button>Click</Button>")
-  assert_eq(result, None)
+  assert_true(result == None)
 }
 
 // =============================================================================

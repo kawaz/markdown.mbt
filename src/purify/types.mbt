@@ -150,4 +150,4 @@ pub(all) enum RemovedKind {
   Attribute
   Url
   Protocol
-} derive(Eq, Show)
+} derive(Eq, Debug)

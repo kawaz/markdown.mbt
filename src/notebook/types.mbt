@@ -98,7 +98,7 @@ pub(all) struct InlineDirective {
   section : String?
   /// Whether to recursively process inlines
   recursive : Bool
-} derive(Eq, Show)
+} derive(Eq, Debug)
 
 // =============================================================================
 // Code Block Attributes
@@ -126,7 +126,7 @@ pub(all) enum OutputFormat {
   Html
   Json
   Auto
-} derive(Eq, Show)
+} derive(Eq, Debug)
 
 // =============================================================================
 // Notebook

@@ -6,7 +6,7 @@
 
 ///|
 /// Agent識別子 (簡易版: Int)
-pub(all) struct AgentId(Int) derive(Eq, Show)
+pub(all) struct AgentId(Int) derive(Eq, Debug)
 
 ///|
 /// 論理ID: (agent, seq) ペア
@@ -14,7 +14,7 @@ pub(all) struct AgentId(Int) derive(Eq, Show)
 pub(all) struct LogicalId {
   agent : AgentId
   seq : Int
-} derive(Eq, Show)
+} derive(Eq, Debug)
 
 ///|
 /// LogicalId生成器

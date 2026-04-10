@@ -1681,7 +1681,7 @@ test "multipass: simple emphasis" {
   assert_eq(result.length(), 1)
   match result[0] {
     Inline::Emphasis(children~, marker~, ..) => {
-      assert_eq(marker, EmphasisMarker::Asterisk)
+      assert_true(marker == EmphasisMarker::Asterisk)
       assert_eq(children.length(), 1)
       match children[0] {
         Inline::Text(content~, ..) => assert_eq(content, "hello")
@@ -1698,7 +1698,7 @@ test "multipass: strong emphasis" {
   assert_eq(result.length(), 1)
   match result[0] {
     Inline::Strong(children~, marker~, ..) => {
-      assert_eq(marker, EmphasisMarker::Asterisk)
+      assert_true(marker == EmphasisMarker::Asterisk)
       assert_eq(children.length(), 1)
     }
     _ => fail("Expected Strong")
@@ -1901,7 +1901,7 @@ test "multipass: backslash newline hard break" {
   for item in result {
     match item {
       Inline::HardBreak(style~, ..) => {
-        assert_eq(style, HardBreakStyle::Backslash)
+        assert_true(style == HardBreakStyle::Backslash)
         has_hard_break = true
       }
       _ => ()

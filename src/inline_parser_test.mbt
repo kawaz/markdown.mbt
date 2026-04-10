@@ -15,7 +15,7 @@ test "parse emphasis with asterisk" {
   inspect(inlines.length(), content="2")
   match inlines[1] {
     Inline::Emphasis(marker~, children~, ..) => {
-      inspect(marker, content="Asterisk")
+      assert_true(marker == EmphasisMarker::Asterisk)
       inspect(children.length(), content="1")
     }
     _ => fail("Expected Emphasis")
@@ -27,7 +27,7 @@ test "parse emphasis with underscore" {
   let inlines = parse_inlines("Hello _world_")
   inspect(inlines.length(), content="2")
   match inlines[1] {
-    Inline::Emphasis(marker~, ..) => inspect(marker, content="Underscore")
+    Inline::Emphasis(marker~, ..) => assert_true(marker == EmphasisMarker::Underscore)
     _ => fail("Expected Emphasis")
   }
 }
@@ -38,7 +38,7 @@ test "parse strong with asterisk" {
   inspect(inlines.length(), content="2")
   match inlines[1] {
     Inline::Strong(marker~, children~, ..) => {
-      inspect(marker, content="Asterisk")
+      assert_true(marker == EmphasisMarker::Asterisk)
       inspect(children.length(), content="1")
     }
     _ => fail("Expected Strong")
@@ -50,7 +50,7 @@ test "parse strong with underscore" {
   let inlines = parse_inlines("Hello __world__")
   inspect(inlines.length(), content="2")
   match inlines[1] {
-    Inline::Strong(marker~, ..) => inspect(marker, content="Underscore")
+    Inline::Strong(marker~, ..) => assert_true(marker == EmphasisMarker::Underscore)
     _ => fail("Expected Strong")
   }
 }
